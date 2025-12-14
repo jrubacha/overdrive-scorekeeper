@@ -8,6 +8,15 @@ const Rankings = {
   rankings: [],
   unsubscribers: [],
 
+  // Auto-scroll state
+  autoScrollEnabled: true,
+  scrollPosition: 0,
+  scrollSpeed: 1,  // pixels per frame
+  pauseAtEnds: 2000,  // ms to pause at top/bottom
+  scrollPaused: false,
+  scrollDirection: 1,  // 1 = down, -1 = up
+  animationFrame: null,
+
   // Point categories for tiebreakers
   trackballActionIds: [
     "auto_ball_removed_1",
@@ -49,6 +58,79 @@ const Rankings = {
 
     // Listen for connection changes
     window.addEventListener("db:connectionChange", () => this.updateConnectionStatus());
+
+    // Set up auto-scroll toggle
+    const scrollToggle = document.getElementById("auto-scroll-toggle");
+    if (scrollToggle) {
+      scrollToggle.addEventListener("change", (e) => {
+        this.autoScrollEnabled = e.target.checked;
+        if (this.autoScrollEnabled) {
+          this.startAutoScroll();
+        } else {
+          this.stopAutoScroll();
+        }
+      });
+    }
+
+    // Start auto-scroll
+    this.startAutoScroll();
+  },
+
+  // Auto-scroll functions
+  startAutoScroll() {
+    if (this.animationFrame) return;
+    this.scrollPosition = 0;
+    this.scrollDirection = 1;
+    this.scrollPaused = false;
+    this.autoScrollLoop();
+  },
+
+  stopAutoScroll() {
+    if (this.animationFrame) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+    }
+  },
+
+  autoScrollLoop() {
+    if (!this.autoScrollEnabled) return;
+
+    const container = document.getElementById("table-scroll");
+    if (!container) return;
+
+    const table = container.querySelector("table");
+    if (!table) return;
+
+    const containerHeight = container.clientHeight;
+    const tableHeight = table.scrollHeight;
+    const maxScroll = Math.max(0, tableHeight - containerHeight);
+
+    // Only scroll if content is taller than container
+    if (maxScroll > 0 && !this.scrollPaused) {
+      this.scrollPosition += this.scrollSpeed * this.scrollDirection;
+
+      // Check bounds and pause at ends
+      if (this.scrollPosition >= maxScroll) {
+        this.scrollPosition = maxScroll;
+        this.scrollDirection = -1;
+        this.pauseScroll();
+      } else if (this.scrollPosition <= 0) {
+        this.scrollPosition = 0;
+        this.scrollDirection = 1;
+        this.pauseScroll();
+      }
+
+      container.scrollTop = this.scrollPosition;
+    }
+
+    this.animationFrame = requestAnimationFrame(() => this.autoScrollLoop());
+  },
+
+  pauseScroll() {
+    this.scrollPaused = true;
+    setTimeout(() => {
+      this.scrollPaused = false;
+    }, this.pauseAtEnds);
   },
 
   updateConnectionStatus() {
@@ -391,6 +473,7 @@ const Rankings = {
   },
 
   destroy() {
+    this.stopAutoScroll();
     this.unsubscribers.forEach(unsub => unsub());
   }
 };

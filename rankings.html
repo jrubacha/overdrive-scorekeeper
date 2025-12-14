@@ -39,14 +39,41 @@
 
     .rankings-main {
       flex: 1;
-      overflow: auto;
+      overflow: hidden;
       padding: var(--spacing-md);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table-container {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .table-scroll {
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-behavior: auto;
+    }
+
+    /* Hide scrollbar but keep functionality */
+    .table-scroll::-webkit-scrollbar {
+      width: 0;
+      background: transparent;
     }
 
     .rankings-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 1.1rem;
+    }
+
+    .rankings-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
 
     .rankings-table th,
@@ -192,38 +219,46 @@
   <!-- Header -->
   <header class="rankings-header">
     <div>
-      <div class="rankings-title">🏆 Team Rankings</div>
+      <div class="rankings-title">Team Rankings</div>
       <div class="rankings-subtitle" id="team-count">Loading...</div>
     </div>
 
     <div class="header-controls">
+      <label style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 0.9rem;">
+        <input type="checkbox" id="auto-scroll-toggle" checked>
+        Auto-scroll
+      </label>
       <span id="connection-status" class="connection-status offline">Offline</span>
-      <button id="fullscreen-btn" class="fullscreen-btn" onclick="Rankings.toggleFullscreen()">⛶ Fullscreen</button>
-      <a href="index.html" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm);">✕</a>
+      <button id="fullscreen-btn" class="fullscreen-btn" onclick="Rankings.toggleFullscreen()">Fullscreen</button>
+      <a href="index.html" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm);">X</a>
     </div>
   </header>
 
   <!-- Rankings Table -->
   <main class="rankings-main">
-    <table class="rankings-table">
-      <thead>
-        <tr>
-          <th>Rank</th>
-          <th>Team #</th>
-          <th>Team Name</th>
-          <th>Ranking Score</th>
-          <th>Total Score</th>
-          <th>Auto Pts</th>
-          <th>Trackball Pts</th>
-          <th>Lap Pts</th>
-        </tr>
-      </thead>
-      <tbody id="rankings-body">
-        <tr>
-          <td colspan="8" class="empty-state">Loading rankings...</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-container">
+      <div class="table-scroll" id="table-scroll">
+        <table class="rankings-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Team #</th>
+              <th>Team Name</th>
+              <th>Ranking Score</th>
+              <th>Total Score</th>
+              <th>Auto Pts</th>
+              <th>Trackball Pts</th>
+              <th>Lap Pts</th>
+            </tr>
+          </thead>
+          <tbody id="rankings-body">
+            <tr>
+              <td colspan="8" class="empty-state">Loading rankings...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </main>
 
   <!-- Firebase SDK -->

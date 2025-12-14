@@ -5,6 +5,8 @@ const Admin = {
   teams: {},
   matches: {},
   currentMatchId: null,
+  currentMatchScores: null,
+  scoreUnsubscriber: null,
   unsubscribers: [],
 
   // Initialize
@@ -80,6 +82,11 @@ const Admin = {
     // Clear match scores
     document.getElementById("clear-match-scores-btn").addEventListener("click", () => {
       this.confirmClearMatchScores();
+    });
+
+    // Finalize match
+    document.getElementById("finalize-match-btn").addEventListener("click", () => {
+      this.confirmFinalizeMatch();
     });
 
     // Data management
@@ -438,6 +445,7 @@ const Admin = {
   async loadCurrentMatch() {
     this.currentMatchId = await DB.getCurrentMatch();
     this.updateCurrentMatchDisplay();
+    this.subscribeToCurrentMatchScores();
 
     // Subscribe to updates
     this.unsubscribers.push(
@@ -445,8 +453,74 @@ const Admin = {
         this.currentMatchId = matchId;
         this.updateCurrentMatchDisplay();
         this.renderMatches();
+        this.subscribeToCurrentMatchScores();
       })
     );
+  },
+
+  subscribeToCurrentMatchScores() {
+    // Unsubscribe from previous match scores
+    if (this.scoreUnsubscriber) {
+      this.scoreUnsubscriber();
+      this.scoreUnsubscriber = null;
+    }
+
+    if (!this.currentMatchId) {
+      this.currentMatchScores = null;
+      this.updateScorerStatus();
+      return;
+    }
+
+    this.scoreUnsubscriber = DB.subscribeToMatchScores(this.currentMatchId, (scores) => {
+      this.currentMatchScores = scores;
+      this.updateScorerStatus();
+    });
+  },
+
+  updateScorerStatus() {
+    const container = document.getElementById("scorer-status");
+    if (!container) return;
+
+    if (!this.currentMatchId) {
+      container.innerHTML = '<p class="text-secondary">Select a match to see scorer status</p>';
+      return;
+    }
+
+    const positions = ["red1", "red2", "blue1", "blue2"];
+    const positionLabels = {
+      red1: "Red 1",
+      red2: "Red 2",
+      blue1: "Blue 1",
+      blue2: "Blue 2"
+    };
+
+    const statusHtml = positions.map(pos => {
+      const scoreData = this.currentMatchScores?.[pos];
+      const hasData = scoreData?.actions && Object.values(scoreData.actions).some(v => v > 0);
+      const isFinalized = scoreData?.finalized;
+
+      let statusClass = "pending";
+      let statusText = "No data";
+
+      if (isFinalized) {
+        statusClass = "finalized";
+        statusText = "Finalized";
+      } else if (hasData) {
+        statusClass = "scoring";
+        statusText = "Scoring...";
+      }
+
+      const alliance = pos.startsWith("red") ? "red" : "blue";
+
+      return `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; margin-bottom: 4px; background: var(--bg-secondary); border-radius: 6px; border-left: 3px solid var(--${alliance}-alliance);">
+          <span style="font-weight: 600;">${positionLabels[pos]}</span>
+          <span class="scorer-status-${statusClass}" style="font-size: 0.85rem; padding: 2px 8px; border-radius: 4px; background: ${isFinalized ? 'var(--accent-green)' : hasData ? 'var(--accent-yellow)' : 'var(--bg-card)'}; color: ${isFinalized ? 'white' : hasData ? '#000' : 'var(--text-secondary)'};">${statusText}</span>
+        </div>
+      `;
+    }).join("");
+
+    container.innerHTML = statusHtml;
   },
 
   updateCurrentMatchDisplay() {
@@ -533,6 +607,77 @@ const Admin = {
     }
 
     this.showToast("Match scores cleared", "warning");
+    closeModal();
+  },
+
+  confirmFinalizeMatch() {
+    if (!this.currentMatchId) {
+      this.showToast("No match selected", "error");
+      return;
+    }
+
+    const match = this.matches[this.currentMatchId];
+    const positions = ["red1", "red2", "blue1", "blue2"];
+    const positionLabels = {
+      red1: "Red 1",
+      red2: "Red 2",
+      blue1: "Blue 1",
+      blue2: "Blue 2"
+    };
+
+    // Check which positions haven't finalized
+    const unfinalized = positions.filter(pos => {
+      const scoreData = this.currentMatchScores?.[pos];
+      return !scoreData?.finalized;
+    });
+
+    if (unfinalized.length === 0) {
+      // All already finalized
+      this.showToast("Match already finalized by all scorers", "success");
+      return;
+    }
+
+    // Check if any have data but aren't finalized
+    const unfinalizedWithData = unfinalized.filter(pos => {
+      const scoreData = this.currentMatchScores?.[pos];
+      return scoreData?.actions && Object.values(scoreData.actions).some(v => v > 0);
+    });
+
+    const unfinalizedNoData = unfinalized.filter(pos => {
+      const scoreData = this.currentMatchScores?.[pos];
+      return !scoreData?.actions || !Object.values(scoreData.actions).some(v => v > 0);
+    });
+
+    let message = `Finalizing Match ${match?.number}.\n\n`;
+
+    if (unfinalizedWithData.length > 0) {
+      message += `Scorers with data NOT finalized:\n${unfinalizedWithData.map(p => "  - " + positionLabels[p]).join("\n")}\n\n`;
+    }
+
+    if (unfinalizedNoData.length > 0) {
+      message += `Scorers with NO data:\n${unfinalizedNoData.map(p => "  - " + positionLabels[p]).join("\n")}\n\n`;
+    }
+
+    message += "Are you sure you want to finalize this match?";
+
+    showModal("Finalize Match?", message, () => this.finalizeMatch());
+  },
+
+  async finalizeMatch() {
+    if (!this.currentMatchId) return;
+
+    const positions = ["red1", "red2", "blue1", "blue2"];
+
+    // Finalize all positions
+    for (const pos of positions) {
+      await DB.update(`scores/${this.currentMatchId}/${pos}`, {
+        finalized: true,
+        finalizedAt: Date.now(),
+        finalizedBy: "admin"
+      });
+    }
+
+    this.showToast("Match finalized", "success");
     closeModal();
   },
 
