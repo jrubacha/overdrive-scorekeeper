@@ -11,11 +11,11 @@ const Rankings = {
   // Auto-scroll state
   autoScrollEnabled: true,
   scrollPosition: 0,
-  scrollSpeed: 1,  // pixels per frame
-  pauseAtEnds: 2000,  // ms to pause at top/bottom
+  scrollSpeed: 0.3,  // pixels per frame (slower = more leisurely)
+  pauseAtTop: 3000,  // ms to pause at top before scrolling
   scrollPaused: false,
-  scrollDirection: 1,  // 1 = down, -1 = up
   animationFrame: null,
+  originalContentHeight: 0,  // height of original content (before duplication)
 
   // Point categories for tiebreakers
   trackballActionIds: [
@@ -80,9 +80,13 @@ const Rankings = {
   startAutoScroll() {
     if (this.animationFrame) return;
     this.scrollPosition = 0;
-    this.scrollDirection = 1;
-    this.scrollPaused = false;
-    this.autoScrollLoop();
+    this.scrollPaused = true;  // Start with a pause at top
+
+    // Initial pause before starting scroll
+    setTimeout(() => {
+      this.scrollPaused = false;
+      this.autoScrollLoop();
+    }, this.pauseAtTop);
   },
 
   stopAutoScroll() {
@@ -98,39 +102,26 @@ const Rankings = {
     const container = document.getElementById("table-scroll");
     if (!container) return;
 
-    const table = container.querySelector("table");
-    if (!table) return;
+    // Only scroll if we have original content height set and not paused
+    if (this.originalContentHeight > 0 && !this.scrollPaused) {
+      this.scrollPosition += this.scrollSpeed;
 
-    const containerHeight = container.clientHeight;
-    const tableHeight = table.scrollHeight;
-    const maxScroll = Math.max(0, tableHeight - containerHeight);
-
-    // Only scroll if content is taller than container
-    if (maxScroll > 0 && !this.scrollPaused) {
-      this.scrollPosition += this.scrollSpeed * this.scrollDirection;
-
-      // Check bounds and pause at ends
-      if (this.scrollPosition >= maxScroll) {
-        this.scrollPosition = maxScroll;
-        this.scrollDirection = -1;
-        this.pauseScroll();
-      } else if (this.scrollPosition <= 0) {
+      // When we've scrolled past the original content (plus gap),
+      // seamlessly reset to top
+      if (this.scrollPosition >= this.originalContentHeight) {
         this.scrollPosition = 0;
-        this.scrollDirection = 1;
-        this.pauseScroll();
+        container.scrollTop = 0;
+        // Pause at the top
+        this.scrollPaused = true;
+        setTimeout(() => {
+          this.scrollPaused = false;
+        }, this.pauseAtTop);
+      } else {
+        container.scrollTop = this.scrollPosition;
       }
-
-      container.scrollTop = this.scrollPosition;
     }
 
     this.animationFrame = requestAnimationFrame(() => this.autoScrollLoop());
-  },
-
-  pauseScroll() {
-    this.scrollPaused = true;
-    setTimeout(() => {
-      this.scrollPaused = false;
-    }, this.pauseAtEnds);
   },
 
   updateConnectionStatus() {
@@ -441,6 +432,7 @@ const Rankings = {
         </tr>
       `;
       if (countEl) countEl.textContent = "0 teams ranked";
+      this.originalContentHeight = 0;
       return;
     }
 
@@ -448,7 +440,8 @@ const Rankings = {
       countEl.textContent = `${this.rankings.length} team${this.rankings.length !== 1 ? "s" : ""} ranked`;
     }
 
-    tbody.innerHTML = this.rankings.map(team => `
+    // Create the original rankings rows
+    const originalRows = this.rankings.map(team => `
       <tr>
         <td class="rank-cell">${team.rank}</td>
         <td class="team-number-cell">${team.teamNumber}</td>
@@ -460,6 +453,39 @@ const Rankings = {
         <td class="score-cell">${team.lapPoints}</td>
       </tr>
     `).join("");
+
+    // Gap rows between original and duplicated content
+    const gapRows = `
+      <tr class="gap-row"><td colspan="8" style="height: 60px; border: none;"></td></tr>
+      <tr class="gap-row"><td colspan="8" style="height: 60px; border: none;"></td></tr>
+    `;
+
+    // Duplicate rows for seamless scrolling (so #1 appears below last place)
+    const duplicateRows = this.rankings.map(team => `
+      <tr class="duplicate-row">
+        <td class="rank-cell">${team.rank}</td>
+        <td class="team-number-cell">${team.teamNumber}</td>
+        <td class="team-name-cell">${team.teamName}</td>
+        <td class="score-cell">${team.rankingScore.toFixed(2)}</td>
+        <td class="score-cell">${team.totalScore}</td>
+        <td class="score-cell">${team.autoPoints}</td>
+        <td class="score-cell">${team.trackballPoints}</td>
+        <td class="score-cell">${team.lapPoints}</td>
+      </tr>
+    `).join("");
+
+    tbody.innerHTML = originalRows + gapRows + duplicateRows;
+
+    // Calculate original content height (original rows + gap) for scroll reset point
+    // We need to wait a tick for the DOM to update
+    requestAnimationFrame(() => {
+      const rows = tbody.querySelectorAll("tr:not(.duplicate-row):not(.gap-row)");
+      const gapRowElements = tbody.querySelectorAll(".gap-row");
+      let height = 0;
+      rows.forEach(row => height += row.offsetHeight);
+      gapRowElements.forEach(row => height += row.offsetHeight);
+      this.originalContentHeight = height;
+    });
   },
 
   toggleFullscreen() {
