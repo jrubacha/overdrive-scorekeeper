@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head><title>Icon Generator</title></head>
+<body>
+<h1>Overdrive Scorekeeper Icon Generator</h1>
+<p>Right-click each icon and save it with the filename shown below:</p>
+<div id="icons"></div>
+<script>
+const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+const container = document.getElementById('icons');
+
+sizes.forEach(size => {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  
+  // Background
+  ctx.fillStyle = '#16213e';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, size, size, size * 0.1);
+  ctx.fill();
+  
+  // Robot body (circle)
+  ctx.fillStyle = '#0d6efd';
+  ctx.beginPath();
+  ctx.arc(size * 0.5, size * 0.38, size * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Wheels
+  ctx.fillStyle = '#dc3545';
+  ctx.beginPath();
+  ctx.arc(size * 0.32, size * 0.65, size * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.fillStyle = '#0d6efd';
+  ctx.beginPath();
+  ctx.arc(size * 0.68, size * 0.65, size * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Base
+  ctx.fillStyle = '#28a745';
+  ctx.beginPath();
+  ctx.roundRect(size * 0.25, size * 0.72, size * 0.5, size * 0.08, size * 0.04);
+  ctx.fill();
+  
+  // Text
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold ' + (size * 0.12) + 'px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('OD', size * 0.5, size * 0.92);
+  
+  const div = document.createElement('div');
+  div.style.margin = '20px';
+  div.style.display = 'inline-block';
+  div.innerHTML = '<p><strong>icon-' + size + '.png</strong></p>';
+  div.appendChild(canvas);
+  container.appendChild(div);
+});
+</script>
+</body>
+</html>

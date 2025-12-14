@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#16213e">
+  <title>Scoreboard - Overdrive</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Scoreboard-specific styles */
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .scoreboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--spacing-md) var(--spacing-lg);
+      background: var(--bg-secondary);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .scoreboard-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .match-indicator {
+      font-size: 1.25rem;
+      padding: var(--spacing-sm) var(--spacing-lg);
+      background: var(--bg-card);
+      border-radius: var(--border-radius);
+    }
+
+    .scoreboard-main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      background: var(--bg-primary);
+    }
+
+    .alliance-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: var(--spacing-xl);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .alliance-panel.red {
+      background: linear-gradient(135deg, #8b0000 0%, #dc3545 50%, #ff6b6b 100%);
+    }
+
+    .alliance-panel.blue {
+      background: linear-gradient(135deg, #00008b 0%, #0d6efd 50%, #6ea8fe 100%);
+    }
+
+    .alliance-label {
+      font-size: 2rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      margin-bottom: var(--spacing-md);
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .alliance-score {
+      font-size: clamp(8rem, 20vw, 16rem);
+      font-weight: 800;
+      line-height: 1;
+      text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .alliance-score.updated {
+      transform: scale(1.1);
+    }
+
+    .alliance-teams {
+      margin-top: var(--spacing-lg);
+      font-size: 1.25rem;
+      opacity: 0.9;
+    }
+
+    .team-number {
+      display: inline-block;
+      padding: var(--spacing-xs) var(--spacing-md);
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: var(--border-radius-sm);
+      margin: 0 var(--spacing-xs);
+    }
+
+    /* Breakdown overlay */
+    .score-breakdown {
+      position: absolute;
+      bottom: var(--spacing-md);
+      left: var(--spacing-md);
+      right: var(--spacing-md);
+      display: flex;
+      justify-content: space-around;
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    .breakdown-item {
+      text-align: center;
+    }
+
+    .breakdown-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .breakdown-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* No match state */
+    .no-match {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: var(--spacing-xl);
+    }
+
+    .no-match-icon {
+      font-size: 4rem;
+      margin-bottom: var(--spacing-lg);
+      opacity: 0.5;
+    }
+
+    .no-match-text {
+      font-size: 1.5rem;
+      color: var(--text-secondary);
+    }
+
+    /* Fullscreen button */
+    .fullscreen-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: var(--text-primary);
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--border-radius-sm);
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .fullscreen-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Match controls (for embedded admin controls) */
+    .match-controls {
+      display: flex;
+      gap: var(--spacing-sm);
+      align-items: center;
+    }
+
+    .match-select {
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--border-radius-sm);
+      font-size: 1rem;
+    }
+
+    /* Winner overlay */
+    .winner-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+    }
+
+    .winner-overlay.active {
+      display: flex;
+    }
+
+    .winner-announcement {
+      text-align: center;
+      animation: winnerPulse 1s infinite;
+    }
+
+    .winner-text {
+      font-size: 3rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 8px;
+    }
+
+    .winner-text.red {
+      color: var(--red-alliance-light);
+    }
+
+    .winner-text.blue {
+      color: var(--blue-alliance-light);
+    }
+
+    .winner-score {
+      font-size: 6rem;
+      font-weight: 800;
+      margin-top: var(--spacing-md);
+    }
+
+    @keyframes winnerPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="scoreboard-header">
+    <div class="scoreboard-title">🤖 Overdrive</div>
+
+    <div class="match-controls">
+      <select id="match-select" class="match-select">
+        <option value="">Select Match</option>
+      </select>
+      <span id="match-indicator" class="match-indicator">No Match Selected</span>
+    </div>
+
+    <div class="flex gap-sm">
+      <span id="connection-status" class="connection-status offline">Offline</span>
+      <button id="fullscreen-btn" class="fullscreen-btn">⛶ Fullscreen</button>
+      <a href="index.html" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm);">✕</a>
+    </div>
+  </header>
+
+  <!-- Main Scoreboard -->
+  <main class="scoreboard-main" id="scoreboard-main">
+    <!-- Red Alliance -->
+    <div class="alliance-panel red">
+      <div class="alliance-label">Red Alliance</div>
+      <div class="alliance-score" id="red-score">0</div>
+      <div class="alliance-teams" id="red-teams">
+        <span class="team-number">---</span>
+        <span class="team-number">---</span>
+      </div>
+      <div class="score-breakdown" id="red-breakdown">
+        <div class="breakdown-item">
+          <div class="breakdown-value" id="red-auto">0</div>
+          <div class="breakdown-label">Auto</div>
+        </div>
+        <div class="breakdown-item">
+          <div class="breakdown-value" id="red-teleop">0</div>
+          <div class="breakdown-label">Teleop</div>
+        </div>
+        <div class="breakdown-item">
+          <div class="breakdown-value" id="red-penalty">0</div>
+          <div class="breakdown-label">Penalty</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Blue Alliance -->
+    <div class="alliance-panel blue">
+      <div class="alliance-label">Blue Alliance</div>
+      <div class="alliance-score" id="blue-score">0</div>
+      <div class="alliance-teams" id="blue-teams">
+        <span class="team-number">---</span>
+        <span class="team-number">---</span>
+      </div>
+      <div class="score-breakdown" id="blue-breakdown">
+        <div class="breakdown-item">
+          <div class="breakdown-value" id="blue-auto">0</div>
+          <div class="breakdown-label">Auto</div>
+        </div>
+        <div class="breakdown-item">
+          <div class="breakdown-value" id="blue-teleop">0</div>
+          <div class="breakdown-label">Teleop</div>
+        </div>
+        <div class="breakdown-item">
+          <div class="breakdown-value" id="blue-penalty">0</div>
+          <div class="breakdown-label">Penalty</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- No Match Overlay -->
+  <div id="no-match-overlay" class="hidden" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-primary);">
+    <div class="no-match">
+      <div class="no-match-icon">🏁</div>
+      <div class="no-match-text">Select a match to display scores</div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/scoring-rules.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/scoreboard.js"></script>
+</body>
+</html>

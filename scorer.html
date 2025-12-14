@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#16213e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Scorer - Overdrive</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Scorer-specific styles */
+    .scorer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--bg-secondary);
+    }
+
+    .scorer-position {
+      font-weight: 700;
+      font-size: 1.1rem;
+      padding: var(--spacing-xs) var(--spacing-md);
+      border-radius: var(--border-radius-sm);
+    }
+
+    .scorer-position.red {
+      background: var(--red-alliance);
+    }
+
+    .scorer-position.blue {
+      background: var(--blue-alliance);
+    }
+
+    .setup-panel {
+      padding: var(--spacing-md);
+    }
+
+    .scoring-panel {
+      display: none;
+    }
+
+    .scoring-panel.active {
+      display: block;
+    }
+
+    .category-header {
+      background: rgba(255, 255, 255, 0.05);
+      padding: var(--spacing-xs) var(--spacing-md);
+      margin: var(--spacing-md) calc(-1 * var(--spacing-md));
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .running-total {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-secondary);
+      padding: var(--spacing-md);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 2px solid var(--bg-card);
+      z-index: 100;
+    }
+
+    .running-total .score {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    /* Add padding at bottom to account for fixed footer */
+    .scoring-content {
+      padding-bottom: 100px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="scorer-header">
+    <a href="index.html" style="color: var(--text-secondary); text-decoration: none;">← Back</a>
+    <span id="position-badge" class="scorer-position">Not Set</span>
+    <span id="connection-status" class="connection-status offline">Offline</span>
+  </header>
+
+  <!-- Setup Panel (shown before match starts) -->
+  <div id="setup-panel" class="setup-panel">
+    <div class="card">
+      <h2 class="mb-md">Scorer Setup</h2>
+
+      <div class="form-group">
+        <label class="form-label">Scorer Position</label>
+        <select id="position-select" class="form-control">
+          <option value="">Select position...</option>
+          <option value="blue1">Blue 1</option>
+          <option value="blue2">Blue 2</option>
+          <option value="red1">Red 1</option>
+          <option value="red2">Red 2</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Current Match</label>
+        <select id="match-select" class="form-control">
+          <option value="">Select match...</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Team You're Scoring</label>
+        <select id="team-select" class="form-control" disabled>
+          <option value="">Select position and match first</option>
+        </select>
+      </div>
+
+      <button id="start-scoring-btn" class="btn btn-success btn-lg btn-block mt-lg" disabled>
+        Start Scoring
+      </button>
+    </div>
+
+    <div class="card">
+      <h3 class="mb-sm">Quick Info</h3>
+      <p style="color: var(--text-secondary); font-size: 0.9rem;">
+        1. Select your scorer position (Blue1, Blue2, Red1, or Red2)<br>
+        2. Select the current match<br>
+        3. Verify the team you're scoring<br>
+        4. Press "Start Scoring" when ready
+      </p>
+    </div>
+  </div>
+
+  <!-- Scoring Panel (shown during match) -->
+  <div id="scoring-panel" class="scoring-panel">
+    <!-- Match Info Bar -->
+    <div class="match-info">
+      <span id="match-label">Match --</span>
+      <span style="margin: 0 var(--spacing-sm);">•</span>
+      <span id="team-label">Team --</span>
+    </div>
+
+    <!-- Period Tabs -->
+    <div class="period-tabs">
+      <button class="period-tab autonomous active" data-period="autonomous">Auto</button>
+      <button class="period-tab teleop" data-period="teleop">Teleop</button>
+      <button class="period-tab penalties" data-period="penalties">Penalties</button>
+    </div>
+
+    <!-- Scoring Content -->
+    <div class="container scoring-content">
+      <!-- Autonomous Panel -->
+      <div id="autonomous-panel" class="period-content active">
+        <div class="card">
+          <div id="autonomous-actions"></div>
+        </div>
+      </div>
+
+      <!-- Teleop Panel -->
+      <div id="teleop-panel" class="period-content">
+        <div class="card">
+          <div id="teleop-actions"></div>
+        </div>
+      </div>
+
+      <!-- Penalties Panel -->
+      <div id="penalties-panel" class="period-content">
+        <div class="card">
+          <p style="color: var(--text-secondary); margin-bottom: var(--spacing-md); font-size: 0.9rem;">
+            Penalties scored here give points to the OPPONENT alliance.
+          </p>
+          <div id="penalty-actions"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Running Total Footer -->
+    <div class="running-total">
+      <div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary);">Running Total</div>
+        <div class="score" id="running-score">0</div>
+      </div>
+      <div class="action-buttons">
+        <button id="clear-btn" class="btn btn-warning">Clear</button>
+        <button id="finalize-btn" class="btn btn-success">Finalize</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirm-modal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Confirm</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <p id="modal-message"></p>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button id="modal-confirm-btn" class="btn btn-primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/scoring-rules.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/scorer.js"></script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#16213e">
+  <meta name="description" content="Overdrive robot competition scoring system">
+  <title>Overdrive Scorekeeper</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header" style="background: transparent; border: none; padding-top: 60px;">
+      <h1>🤖 Overdrive Scorekeeper</h1>
+      <p class="subtitle">Robot Competition Scoring System</p>
+    </header>
+
+    <main style="padding-top: 40px;">
+      <div class="card">
+        <a href="scorer.html" class="btn btn-primary btn-lg btn-block" style="text-decoration: none; margin-bottom: var(--spacing-md);">
+          📋 Scorer Interface
+        </a>
+        <p class="text-center" style="color: var(--text-secondary); font-size: 0.9rem;">
+          For tablet scorers tracking individual robots
+        </p>
+      </div>
+
+      <div class="card">
+        <a href="scoreboard.html" class="btn btn-success btn-lg btn-block" style="text-decoration: none; margin-bottom: var(--spacing-md);">
+          📺 Live Scoreboard
+        </a>
+        <p class="text-center" style="color: var(--text-secondary); font-size: 0.9rem;">
+          Real-time score display for projection
+        </p>
+      </div>
+
+      <div class="card">
+        <a href="admin.html" class="btn btn-secondary btn-lg btn-block" style="text-decoration: none; margin-bottom: var(--spacing-md);">
+          ⚙️ Admin Setup
+        </a>
+        <p class="text-center" style="color: var(--text-secondary); font-size: 0.9rem;">
+          Manage teams, matches, and settings
+        </p>
+      </div>
+    </main>
+
+    <footer style="text-align: center; padding: var(--spacing-xl); color: var(--text-muted);">
+      <p>Overdrive Scorekeeper v1.0</p>
+      <p style="font-size: 0.8rem; margin-top: var(--spacing-xs);">
+        <span id="connection-status" class="connection-status offline">Checking...</span>
+      </p>
+    </footer>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/db.js"></script>
+
+  <script>
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('Service Worker registered'))
+        .catch(err => console.log('Service Worker registration failed:', err));
+    }
+
+    // Initialize and check connection
+    document.addEventListener('DOMContentLoaded', async () => {
+      const statusEl = document.getElementById('connection-status');
+
+      try {
+        await DB.init();
+
+        if (FirebaseConfig.isConfigured()) {
+          statusEl.textContent = navigator.onLine ? 'Online' : 'Offline';
+          statusEl.className = `connection-status ${navigator.onLine ? 'online' : 'offline'}`;
+        } else {
+          statusEl.textContent = 'Demo Mode';
+          statusEl.className = 'connection-status offline';
+        }
+      } catch (e) {
+        statusEl.textContent = 'Error';
+        statusEl.className = 'connection-status offline';
+      }
+
+      // Listen for connection changes
+      window.addEventListener('db:connectionChange', (e) => {
+        statusEl.textContent = e.detail.online ? 'Online' : 'Offline';
+        statusEl.className = `connection-status ${e.detail.online ? 'online' : 'offline'}`;
+      });
+    });
+  </script>
+</body>
+</html>

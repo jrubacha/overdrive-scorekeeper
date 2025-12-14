@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#16213e">
+  <title>Admin - Overdrive Scorekeeper</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Admin-specific styles */
+    .admin-nav {
+      display: flex;
+      background: var(--bg-secondary);
+      border-bottom: 2px solid var(--bg-card);
+      overflow-x: auto;
+    }
+
+    .admin-nav a {
+      padding: var(--spacing-md) var(--spacing-lg);
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .admin-nav a:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .admin-nav a.active {
+      color: var(--text-primary);
+      border-bottom-color: var(--blue-alliance);
+    }
+
+    .admin-section {
+      display: none;
+      padding: var(--spacing-md);
+    }
+
+    .admin-section.active {
+      display: block;
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: var(--spacing-md);
+    }
+
+    .team-card {
+      background: var(--bg-secondary);
+      border-radius: var(--border-radius);
+      padding: var(--spacing-md);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .team-card .team-number {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--blue-alliance);
+    }
+
+    .team-card .team-name {
+      color: var(--text-secondary);
+      margin-top: var(--spacing-xs);
+      flex: 1;
+    }
+
+    .team-card .team-actions {
+      margin-top: var(--spacing-md);
+      display: flex;
+      gap: var(--spacing-xs);
+    }
+
+    .match-card {
+      background: var(--bg-secondary);
+      border-radius: var(--border-radius);
+      padding: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+
+    .match-card:hover {
+      border-color: var(--blue-alliance);
+    }
+
+    .match-card.current {
+      border-color: var(--accent-green);
+      background: rgba(40, 167, 69, 0.1);
+    }
+
+    .match-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .match-number {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .match-status {
+      font-size: 0.8rem;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--border-radius-sm);
+      background: var(--bg-card);
+    }
+
+    .match-status.current {
+      background: var(--accent-green);
+      color: white;
+    }
+
+    .match-alliances {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing-md);
+    }
+
+    .alliance-box {
+      padding: var(--spacing-sm);
+      border-radius: var(--border-radius-sm);
+      text-align: center;
+    }
+
+    .alliance-box.red {
+      background: rgba(220, 53, 69, 0.2);
+      border: 1px solid var(--red-alliance);
+    }
+
+    .alliance-box.blue {
+      background: rgba(13, 110, 253, 0.2);
+      border: 1px solid var(--blue-alliance);
+    }
+
+    .alliance-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .alliance-teams {
+      font-weight: 600;
+    }
+
+    /* Form styles */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing-md);
+    }
+
+    @media (max-width: 600px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Data management section */
+    .data-action {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--spacing-md);
+      background: var(--bg-secondary);
+      border-radius: var(--border-radius);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .data-action-info h4 {
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .data-action-info p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <h1>⚙️ Admin Setup</h1>
+    <p class="subtitle">
+      <span id="connection-status" class="connection-status offline">Checking...</span>
+    </p>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="admin-nav">
+    <a href="#teams" class="active" data-section="teams">Teams</a>
+    <a href="#matches" data-section="matches">Matches</a>
+    <a href="#current" data-section="current">Current Match</a>
+    <a href="#data" data-section="data">Data</a>
+  </nav>
+
+  <!-- Teams Section -->
+  <section id="teams-section" class="admin-section active">
+    <div class="container">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Add Team</h2>
+        </div>
+        <form id="add-team-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Team Number</label>
+              <input type="text" id="team-number" class="form-control" placeholder="e.g., 1234" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Team Name</label>
+              <input type="text" id="team-name" class="form-control" placeholder="e.g., Robo Warriors">
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">Add Team</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Team List</h2>
+          <span id="team-count" class="text-secondary">0 teams</span>
+        </div>
+        <div id="team-list" class="team-grid">
+          <p class="text-secondary">No teams added yet</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Matches Section -->
+  <section id="matches-section" class="admin-section">
+    <div class="container">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Create Match</h2>
+        </div>
+        <form id="add-match-form">
+          <div class="form-group">
+            <label class="form-label">Match Number</label>
+            <input type="number" id="match-number" class="form-control" placeholder="e.g., 1" min="1" required>
+          </div>
+
+          <h4 style="margin: var(--spacing-md) 0 var(--spacing-sm); color: var(--red-alliance);">Red Alliance</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Red 1</label>
+              <select id="match-red1" class="form-control" required>
+                <option value="">Select team...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Red 2</label>
+              <select id="match-red2" class="form-control" required>
+                <option value="">Select team...</option>
+              </select>
+            </div>
+          </div>
+
+          <h4 style="margin: var(--spacing-md) 0 var(--spacing-sm); color: var(--blue-alliance);">Blue Alliance</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Blue 1</label>
+              <select id="match-blue1" class="form-control" required>
+                <option value="">Select team...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Blue 2</label>
+              <select id="match-blue2" class="form-control" required>
+                <option value="">Select team...</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary mt-md">Create Match</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Match Schedule</h2>
+          <span id="match-count" class="text-secondary">0 matches</span>
+        </div>
+        <div id="match-list">
+          <p class="text-secondary">No matches created yet</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Current Match Section -->
+  <section id="current-section" class="admin-section">
+    <div class="container">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Select Current Match</h2>
+        </div>
+        <p style="color: var(--text-secondary); margin-bottom: var(--spacing-md);">
+          The current match will be automatically displayed on all scoreboards.
+        </p>
+        <div class="form-group">
+          <select id="current-match-select" class="form-control">
+            <option value="">No match selected</option>
+          </select>
+        </div>
+        <button id="set-current-match-btn" class="btn btn-success">Set as Current Match</button>
+      </div>
+
+      <div class="card" id="current-match-display">
+        <div class="card-header">
+          <h2 class="card-title">Current Match Info</h2>
+        </div>
+        <div id="current-match-info">
+          <p class="text-secondary">No match currently selected</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Quick Actions</h2>
+        </div>
+        <div class="grid-2">
+          <a href="scoreboard.html" class="btn btn-primary btn-lg" target="_blank">Open Scoreboard</a>
+          <button id="clear-match-scores-btn" class="btn btn-warning btn-lg">Clear Match Scores</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Data Management Section -->
+  <section id="data-section" class="admin-section">
+    <div class="container">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Firebase Configuration</h2>
+        </div>
+        <div id="firebase-status">
+          <p id="firebase-config-status" style="padding: var(--spacing-md); background: var(--bg-secondary); border-radius: var(--border-radius-sm);">
+            Checking Firebase configuration...
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Data Management</h2>
+        </div>
+
+        <div class="data-action">
+          <div class="data-action-info">
+            <h4>Export Data</h4>
+            <p>Download all teams, matches, and scores as JSON</p>
+          </div>
+          <button id="export-data-btn" class="btn btn-secondary">Export</button>
+        </div>
+
+        <div class="data-action">
+          <div class="data-action-info">
+            <h4>Import Data</h4>
+            <p>Load teams and matches from a JSON file</p>
+          </div>
+          <label class="btn btn-secondary" style="cursor: pointer;">
+            Import
+            <input type="file" id="import-data-input" accept=".json" style="display: none;">
+          </label>
+        </div>
+
+        <div class="data-action">
+          <div class="data-action-info">
+            <h4>Clear Local Cache</h4>
+            <p>Remove locally stored data (keeps Firebase data)</p>
+          </div>
+          <button id="clear-cache-btn" class="btn btn-warning">Clear Cache</button>
+        </div>
+
+        <div class="data-action">
+          <div class="data-action-info">
+            <h4>Reset Everything</h4>
+            <p>Delete ALL data including teams, matches, and scores</p>
+          </div>
+          <button id="reset-all-btn" class="btn btn-danger">Reset All</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Confirmation Modal -->
+  <div id="confirm-modal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Confirm</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <p id="modal-message"></p>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button id="modal-confirm-btn" class="btn btn-danger">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Back button -->
+  <div style="text-align: center; padding: var(--spacing-lg);">
+    <a href="index.html" class="btn btn-secondary">← Back to Home</a>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/scoring-rules.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
