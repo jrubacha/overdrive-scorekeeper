@@ -158,15 +158,20 @@ const Scorer = {
   onPositionChange() {
     this.position = this.elements.positionSelect.value;
 
-    // Update badge
+    // Update badge and theme
     const badge = this.elements.positionBadge;
     if (this.position) {
       const alliance = this.position.startsWith("blue") ? "blue" : "red";
       badge.className = `scorer-position ${alliance}`;
       badge.textContent = this.position.toUpperCase().replace(/(\d)/, " $1");
+
+      // Apply alliance theme to page
+      document.body.classList.remove("theme-red", "theme-blue");
+      document.body.classList.add(`theme-${alliance}`);
     } else {
       badge.className = "scorer-position";
       badge.textContent = "Not Set";
+      document.body.classList.remove("theme-red", "theme-blue");
     }
 
     this.updateTeamSelect();
