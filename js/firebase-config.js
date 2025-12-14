@@ -10,13 +10,13 @@
 // 5. Register your app and copy the config object values below
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY_HERE",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyC8KZy0W2ZXYYtdY9TdW2wzKD6A4IQt62w",
+  authDomain: "overdrivescorekeeper.firebaseapp.com",
+  databaseURL: "https://overdrivescorekeeper-default-rtdb.firebaseio.com",
+  projectId: "overdrivescorekeeper",
+  storageBucket: "overdrivescorekeeper.firebasestorage.app",
+  messagingSenderId: "216409795272",
+  appId: "1:216409795272:web:c897f6073ca90bfcf413fd"
 };
 
 // Initialize Firebase
