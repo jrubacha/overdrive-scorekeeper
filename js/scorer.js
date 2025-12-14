@@ -9,6 +9,7 @@ const Scorer = {
   actions: {},           // Current scoring actions
   isScoring: false,
   unsubscribers: [],     // For cleanup
+  matchesSubscribed: false,  // Track if we've already subscribed
 
   // DOM Elements
   elements: {},
@@ -89,6 +90,19 @@ const Scorer = {
   // Load matches from database
   async loadMatches() {
     const matches = await DB.getMatches();
+    this.populateMatchSelect(matches);
+
+    // Subscribe to match updates (only once!)
+    if (!this.matchesSubscribed) {
+      this.matchesSubscribed = true;
+      this.unsubscribers.push(
+        DB.subscribeToMatches((matches) => this.populateMatchSelect(matches))
+      );
+    }
+  },
+
+  // Populate match dropdown (separated to avoid infinite loop)
+  populateMatchSelect(matches) {
     const select = this.elements.matchSelect;
 
     select.innerHTML = '<option value="">Select match...</option>';
@@ -108,11 +122,6 @@ const Scorer = {
       option.textContent = `Match ${match.number}`;
       select.appendChild(option);
     }
-
-    // Subscribe to match updates
-    this.unsubscribers.push(
-      DB.subscribeToMatches((matches) => this.loadMatches())
-    );
   },
 
   // Load saved state from localStorage
