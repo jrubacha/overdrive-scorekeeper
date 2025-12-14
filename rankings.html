@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#16213e">
+  <title>Rankings - Overdrive</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Rankings-specific styles */
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .rankings-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--spacing-md) var(--spacing-lg);
+      background: var(--bg-secondary);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .rankings-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .rankings-subtitle {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .rankings-main {
+      flex: 1;
+      overflow: auto;
+      padding: var(--spacing-md);
+    }
+
+    .rankings-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 1.1rem;
+    }
+
+    .rankings-table th,
+    .rankings-table td {
+      padding: var(--spacing-md);
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .rankings-table th {
+      background: var(--bg-secondary);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .rankings-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .rankings-table tbody tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .rank-cell {
+      font-weight: 700;
+      font-size: 1.3rem;
+      width: 60px;
+      text-align: center;
+    }
+
+    /* Top 3 highlighting */
+    .rankings-table tbody tr:nth-child(1) .rank-cell {
+      color: #ffd700;
+    }
+
+    .rankings-table tbody tr:nth-child(2) .rank-cell {
+      color: #c0c0c0;
+    }
+
+    .rankings-table tbody tr:nth-child(3) .rank-cell {
+      color: #cd7f32;
+    }
+
+    .team-number-cell {
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: var(--blue-alliance-light);
+      width: 100px;
+    }
+
+    .team-name-cell {
+      color: var(--text-primary);
+    }
+
+    .score-cell {
+      text-align: center;
+      font-family: monospace;
+      font-size: 1.1rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: var(--spacing-xl) !important;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    /* Fullscreen button */
+    .fullscreen-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: var(--text-primary);
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--border-radius-sm);
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .fullscreen-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .header-controls {
+      display: flex;
+      gap: var(--spacing-sm);
+      align-items: center;
+    }
+
+    /* Responsive adjustments for large displays */
+    @media (min-width: 1200px) {
+      .rankings-table {
+        font-size: 1.3rem;
+      }
+
+      .rankings-table th,
+      .rankings-table td {
+        padding: var(--spacing-lg);
+      }
+
+      .rank-cell {
+        font-size: 1.8rem;
+      }
+
+      .team-number-cell {
+        font-size: 1.5rem;
+      }
+    }
+
+    /* Fullscreen mode */
+    :fullscreen .rankings-header {
+      padding: var(--spacing-lg) var(--spacing-xl);
+    }
+
+    :fullscreen .rankings-title {
+      font-size: 2rem;
+    }
+
+    :fullscreen .rankings-table {
+      font-size: 1.5rem;
+    }
+
+    :fullscreen .rankings-table th,
+    :fullscreen .rankings-table td {
+      padding: var(--spacing-lg) var(--spacing-xl);
+    }
+
+    :fullscreen .rank-cell {
+      font-size: 2.2rem;
+    }
+
+    :fullscreen .team-number-cell {
+      font-size: 1.8rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="rankings-header">
+    <div>
+      <div class="rankings-title">🏆 Team Rankings</div>
+      <div class="rankings-subtitle" id="team-count">Loading...</div>
+    </div>
+
+    <div class="header-controls">
+      <span id="connection-status" class="connection-status offline">Offline</span>
+      <button id="fullscreen-btn" class="fullscreen-btn" onclick="Rankings.toggleFullscreen()">⛶ Fullscreen</button>
+      <a href="index.html" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm);">✕</a>
+    </div>
+  </header>
+
+  <!-- Rankings Table -->
+  <main class="rankings-main">
+    <table class="rankings-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Team #</th>
+          <th>Team Name</th>
+          <th>Ranking Score</th>
+          <th>Total Score</th>
+          <th>Auto Pts</th>
+          <th>Trackball Pts</th>
+          <th>Lap Pts</th>
+        </tr>
+      </thead>
+      <tbody id="rankings-body">
+        <tr>
+          <td colspan="8" class="empty-state">Loading rankings...</td>
+        </tr>
+      </tbody>
+    </table>
+  </main>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/scoring-rules.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/rankings.js"></script>
+</body>
+</html>

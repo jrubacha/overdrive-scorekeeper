@@ -2,13 +2,14 @@
 // =========================================
 // Enables offline functionality and caching
 
-const CACHE_NAME = "overdrive-v1";
+const CACHE_NAME = "overdrive-v2";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/scorer.html",
   "/scoreboard.html",
   "/admin.html",
+  "/rankings.html",
   "/manifest.json",
   "/css/styles.css",
   "/js/firebase-config.js",
@@ -17,6 +18,7 @@ const STATIC_ASSETS = [
   "/js/scorer.js",
   "/js/scoreboard.js",
   "/js/admin.js",
+  "/js/rankings.js",
   "/icons/icon-192.png",
   "/icons/icon-512.png"
 ];
