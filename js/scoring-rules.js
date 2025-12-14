@@ -39,9 +39,17 @@ const ScoringRules = {
       maxCount: null
     },
     // Trackball actions
-    trackballRemoved: {
-      id: "auto_ball_removed",
-      name: "Removed from Overpass",
+    trackballRemoved1: {
+      id: "auto_ball_removed_1",
+      name: "Trackball 1 Removed from Overpass",
+      category: "Trackball",
+      points: 8,
+      type: "checkbox",
+      maxCount: 1
+    },
+    trackballRemoved2: {
+      id: "auto_ball_removed_2",
+      name: "Trackball 2 Removed from Overpass",
       category: "Trackball",
       points: 8,
       type: "checkbox",
