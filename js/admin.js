@@ -1096,14 +1096,20 @@ const Admin = {
 
     const allianceCount = Object.keys(this.alliances).length;
 
-    // Get available teams (not captains and not picked)
-    const takenTeamIds = new Set();
+    // Get teams that have already been picked (not captains - captains can be picked)
+    const pickedTeamIds = new Set();
     for (const alliance of Object.values(this.alliances)) {
-      if (alliance.captain) takenTeamIds.add(alliance.captain);
-      if (alliance.pick) takenTeamIds.add(alliance.pick);
+      if (alliance.pick) pickedTeamIds.add(alliance.pick);
     }
 
-    const availableTeams = this.rankedTeams.filter(t => !takenTeamIds.has(t.teamId));
+    // Get current captain IDs
+    const captainIds = new Set();
+    for (const alliance of Object.values(this.alliances)) {
+      if (alliance.captain) captainIds.add(alliance.captain);
+    }
+
+    // Available teams = all ranked teams minus those already picked
+    const availableTeams = this.rankedTeams.filter(t => !pickedTeamIds.has(t.teamId));
 
     // Count formed alliances
     let formedCount = 0;
@@ -1127,7 +1133,7 @@ const Admin = {
         const pick = this.teams[alliance.pick];
         const seedClass = num <= 3 ? `a${num}` : "";
 
-        // Build pick dropdown
+        // Build pick dropdown - exclude picked teams, but allow picking captains
         let pickOptions = '<option value="">Select pick...</option>';
 
         // Add current pick if exists
@@ -1135,9 +1141,16 @@ const Admin = {
           pickOptions += `<option value="${alliance.pick}" selected>${pick.number} - ${pick.name || "Team"}</option>`;
         }
 
-        // Add available teams
+        // Add available teams (includes captains of other alliances, excludes own captain)
         for (const team of availableTeams) {
-          pickOptions += `<option value="${team.teamId}">${team.teamNumber} - ${team.teamName || "Team"}</option>`;
+          // Skip if this is the current alliance's captain
+          if (team.teamId === alliance.captain) continue;
+          // Show captain indicator if this team is a captain of another alliance
+          const isCaptain = captainIds.has(team.teamId) && team.teamId !== alliance.captain;
+          const label = isCaptain
+            ? `${team.teamNumber} - ${team.teamName || "Team"} (Captain)`
+            : `${team.teamNumber} - ${team.teamName || "Team"}`;
+          pickOptions += `<option value="${team.teamId}">${label}</option>`;
         }
 
         return `
@@ -1163,11 +1176,54 @@ const Admin = {
     const alliance = this.alliances[allianceNum];
     if (!alliance) return;
 
+    // Check if the picked team is a captain of another alliance
+    const pickedTeamWasCaptain = Object.entries(this.alliances).find(
+      ([num, a]) => num !== String(allianceNum) && a.captain === teamId
+    );
+
     alliance.pick = teamId || null;
     alliance.teams = [alliance.captain];
     if (teamId) alliance.teams.push(teamId);
 
     await DB.saveAlliance(allianceNum, alliance);
+
+    // If picked team was a captain, slide up remaining teams
+    if (pickedTeamWasCaptain && teamId) {
+      await this.slideUpCaptains();
+    }
+  },
+
+  async slideUpCaptains() {
+    // Get all picked team IDs
+    const pickedTeamIds = new Set();
+    for (const alliance of Object.values(this.alliances)) {
+      if (alliance.pick) pickedTeamIds.add(alliance.pick);
+    }
+
+    // Recalculate captains - assign next available ranked team to each alliance
+    const allianceCount = Object.keys(this.alliances).length;
+    let rankIndex = 0;
+
+    for (let i = 1; i <= allianceCount; i++) {
+      const alliance = this.alliances[i];
+
+      // Find next available captain (not already picked by another alliance)
+      while (rankIndex < this.rankedTeams.length && pickedTeamIds.has(this.rankedTeams[rankIndex].teamId)) {
+        rankIndex++;
+      }
+
+      if (rankIndex < this.rankedTeams.length) {
+        const newCaptain = this.rankedTeams[rankIndex].teamId;
+
+        // Only update if captain changed and this alliance hasn't picked yet
+        if (alliance.captain !== newCaptain && !alliance.pick) {
+          alliance.captain = newCaptain;
+          alliance.teams = [newCaptain];
+          await DB.saveAlliance(i, alliance);
+        }
+        rankIndex++;
+      }
+    }
   },
 
   async confirmAlliancesAndGenerateBracket() {
@@ -1332,6 +1388,32 @@ const Admin = {
       const redTeams = redAlliance?.teams?.map(id => this.teams[id]?.number).join(" & ") || "";
       const blueTeams = blueAlliance?.teams?.map(id => this.teams[id]?.number).join(" & ") || "";
 
+      // Build action buttons
+      let actionsHtml = "";
+      if (isCompleted) {
+        actionsHtml = `<span style="color: var(--accent-green);">Done</span>`;
+      } else if (isReady) {
+        actionsHtml = `
+          <div class="bracket-match-actions">
+            <button class="btn btn-secondary btn-sm" onclick="Admin.setPlayoffMatchCurrent('${matchId}')" title="Set as current match">
+              ${isCurrent ? "Current" : "Set Current"}
+            </button>
+            <div class="winner-buttons">
+              <button class="btn btn-sm" style="background: var(--red-alliance); color: white;"
+                      onclick="Admin.recordWinner('${matchId}', 'red')" title="Red wins">
+                Red Wins
+              </button>
+              <button class="btn btn-sm" style="background: var(--blue-alliance); color: white;"
+                      onclick="Admin.recordWinner('${matchId}', 'blue')" title="Blue wins">
+                Blue Wins
+              </button>
+            </div>
+          </div>
+        `;
+      } else {
+        actionsHtml = `<span style="color: var(--text-secondary);">Waiting</span>`;
+      }
+
       return `
         <div class="bracket-match-item ${isCurrent ? "current" : ""} ${isCompleted ? "completed" : ""}">
           <div class="match-id">${matchId}</div>
@@ -1341,13 +1423,8 @@ const Admin = {
           <div class="alliance-slot blue ${match.blue === null ? "tbd" : ""} ${match.winner === "blue" ? "winner" : ""}">
             ${blueDisplay}${blueTeams ? `<br><small>${blueTeams}</small>` : ""}
           </div>
-          <div>
-            ${isCompleted ?
-              `<span style="color: var(--accent-green);">Done</span>` :
-              isReady ?
-                `<button class="btn btn-secondary btn-sm" onclick="Admin.setPlayoffMatchCurrent('${matchId}')">Set Current</button>` :
-                `<span style="color: var(--text-secondary);">Waiting</span>`
-            }
+          <div class="bracket-match-controls">
+            ${actionsHtml}
           </div>
         </div>
       `;
@@ -1479,6 +1556,51 @@ const Admin = {
     closeModal();
   },
 
+  // Record winner from admin UI (takes bracket match ID like "M1")
+  async recordWinner(bracketMatchId, winner) {
+    if (!this.bracketState) {
+      this.showToast("No bracket loaded", "error");
+      return;
+    }
+
+    const match = this.bracketState.matches[bracketMatchId];
+    if (!match) {
+      this.showToast("Match not found", "error");
+      return;
+    }
+
+    if (match.played) {
+      this.showToast("Match already completed", "warning");
+      return;
+    }
+
+    if (match.red === null || match.blue === null) {
+      this.showToast("Match not ready - alliances not determined", "error");
+      return;
+    }
+
+    // Get winning alliance info for toast
+    const winningAlliance = winner === "red" ? match.red : match.blue;
+
+    // Record result and advance teams
+    this.bracketState = Bracket.recordResult(this.bracketState, bracketMatchId, winner);
+
+    // Create any new matches that are now ready
+    await this.createNewBracketMatches();
+
+    // Save updated bracket
+    await DB.saveBracket(this.bracketState);
+
+    if (this.bracketState.status === "complete") {
+      this.showToast(`Tournament complete! Alliance ${this.bracketState.champion} wins!`, "success");
+    } else {
+      this.showToast(`${bracketMatchId}: Alliance ${winningAlliance} wins!`, "success");
+    }
+
+    // Re-render bracket management
+    this.renderBracketManagement();
+  },
+
   // Record a bracket match result (called after match is finalized)
   async recordBracketResult(playoffMatchId, winner) {
     if (!this.bracketState) return;
@@ -1494,18 +1616,8 @@ const Admin = {
 
     if (!bracketMatchId) return;
 
-    // Record result and advance teams
-    this.bracketState = Bracket.recordResult(this.bracketState, bracketMatchId, winner);
-
-    // Create any new matches that are now ready
-    await this.createNewBracketMatches();
-
-    // Save updated bracket
-    await DB.saveBracket(this.bracketState);
-
-    if (this.bracketState.status === "complete") {
-      this.showToast(`Tournament complete! Alliance ${this.bracketState.champion} wins!`, "success");
-    }
+    // Use the new recordWinner function
+    await this.recordWinner(bracketMatchId, winner);
   },
 
   async createNewBracketMatches() {

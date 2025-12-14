@@ -112,9 +112,34 @@ const Scorer = {
       return;
     }
 
-    // Sort matches by number
+    // Helper to extract numeric value from match number
+    const getMatchSortKey = (matchNum) => {
+      if (typeof matchNum === "number") return { isPlayoff: false, num: matchNum };
+      if (typeof matchNum === "string") {
+        // Playoff match like "P-M1", "P-M10"
+        const playoffMatch = matchNum.match(/^P-M(\d+)$/);
+        if (playoffMatch) {
+          return { isPlayoff: true, num: parseInt(playoffMatch[1], 10) };
+        }
+        // Try parsing as number
+        const parsed = parseInt(matchNum, 10);
+        if (!isNaN(parsed)) return { isPlayoff: false, num: parsed };
+      }
+      return { isPlayoff: false, num: 0 };
+    };
+
+    // Sort matches: qualification first (numerically), then playoff (numerically)
     const sortedMatches = Object.entries(matches)
-      .sort((a, b) => (a[1].number || 0) - (b[1].number || 0));
+      .sort((a, b) => {
+        const keyA = getMatchSortKey(a[1].number);
+        const keyB = getMatchSortKey(b[1].number);
+        // Qualification matches come before playoff matches
+        if (keyA.isPlayoff !== keyB.isPlayoff) {
+          return keyA.isPlayoff ? 1 : -1;
+        }
+        // Within same type, sort numerically
+        return keyA.num - keyB.num;
+      });
 
     for (const [id, match] of sortedMatches) {
       const option = document.createElement("option");

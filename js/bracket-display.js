@@ -140,7 +140,7 @@ const BracketDisplay = {
   },
 
   getAllianceDisplay(allianceNum) {
-    if (allianceNum === null) {
+    if (allianceNum == null) {
       return { name: "TBD", teams: "" };
     }
 
@@ -166,18 +166,18 @@ const BracketDisplay = {
     const currentClass = data.isCurrent ? "current" : "";
     const completedClass = data.played ? "completed" : "";
 
-    const redSlotClass = data.red === null ? "tbd" : (data.winner === "red" ? "winner" : "");
-    const blueSlotClass = data.blue === null ? "tbd" : (data.winner === "blue" ? "winner" : "");
+    const redSlotClass = data.red == null ? "tbd" : (data.winner === "red" ? "winner" : "");
+    const blueSlotClass = data.blue == null ? "tbd" : (data.winner === "blue" ? "winner" : "");
 
     return `
       <div class="${boxClass} ${currentClass} ${completedClass}">
         <div class="match-header">${matchId}</div>
         <div class="alliance-slot red ${redSlotClass}">
-          <span class="alliance-name">${data.red !== null ? data.redDisplay.name : "TBD"}</span>
+          <span class="alliance-name">${data.red != null ? data.redDisplay.name : "TBD"}</span>
           ${data.winner === "red" ? '<span class="winner-icon">&#9654;</span>' : ""}
         </div>
         <div class="alliance-slot blue ${blueSlotClass}">
-          <span class="alliance-name">${data.blue !== null ? data.blueDisplay.name : "TBD"}</span>
+          <span class="alliance-name">${data.blue != null ? data.blueDisplay.name : "TBD"}</span>
           ${data.winner === "blue" ? '<span class="winner-icon">&#9654;</span>' : ""}
         </div>
       </div>
@@ -206,17 +206,73 @@ const BracketDisplay = {
     `;
   },
 
+  // Render combined finals box for double elimination
+  renderFinalsBox(finalsMatchIds) {
+    const matches = this.bracketState?.matches || {};
+    const finalsMatches = finalsMatchIds.map(id => ({ id, ...matches[id] })).filter(m => m);
+
+    if (finalsMatches.length === 0) return "";
+
+    // Get the alliances from the first finals match (or TBD)
+    const firstMatch = finalsMatches[0];
+    const redAlliance = firstMatch.red;
+    const blueAlliance = firstMatch.blue;
+    const redDisplay = this.getAllianceDisplay(redAlliance);
+    const blueDisplay = this.getAllianceDisplay(blueAlliance);
+
+    // Count wins for each alliance
+    let redWins = 0;
+    let blueWins = 0;
+    for (const match of finalsMatches) {
+      if (match.played) {
+        if (match.winner === "red") redWins++;
+        else if (match.winner === "blue") blueWins++;
+      }
+    }
+
+    // Check if any finals match is current
+    const isAnyCurrent = finalsMatches.some(m => m.scoreMatchId === this.currentMatchId);
+    const currentClass = isAnyCurrent ? "current" : "";
+
+    // Determine series status
+    let seriesStatus = "";
+    const totalNeeded = finalsMatches.length === 3 ? 2 : 1; // Best of 3 vs single elimination style
+    if (redWins > 0 || blueWins > 0) {
+      if (finalsMatches.length === 3) {
+        seriesStatus = `Best of 3: ${redWins} - ${blueWins}`;
+      } else {
+        // For standard double elim finals
+        const matchesPlayed = finalsMatches.filter(m => m.played).length;
+        const totalFinalsMatches = finalsMatches.length;
+        seriesStatus = `Match ${matchesPlayed} of ${totalFinalsMatches}`;
+      }
+    }
+
+    return `
+      <div class="finals-box ${currentClass}">
+        <div class="match-header">FINALS</div>
+        <div class="alliance-slot red ${redWins > blueWins && this.bracketState?.champion ? 'winner' : ''}">
+          <span class="alliance-name">${redAlliance != null ? redDisplay.name : "TBD"}</span>
+          <span class="finals-wins">${redWins > 0 ? redWins : ""}</span>
+        </div>
+        <div class="alliance-slot blue ${blueWins > redWins && this.bracketState?.champion ? 'winner' : ''}">
+          <span class="alliance-name">${blueAlliance != null ? blueDisplay.name : "TBD"}</span>
+          <span class="finals-wins">${blueWins > 0 ? blueWins : ""}</span>
+        </div>
+        ${seriesStatus ? `<div class="finals-status">${seriesStatus}</div>` : ""}
+      </div>
+    `;
+  },
+
   // 2-Alliance Bracket (Best of 3)
   render2AllianceBracket() {
     return `
       <div class="round-labels">
-        <div class="round-label">Finals</div>
+        <div class="round-label">Finals (Best of 3)</div>
       </div>
       <div class="bracket-wrapper">
-        <div class="bracket-row" style="justify-content: center; gap: 30px;">
-          ${this.renderMatchBox("M1", true)}
-          ${this.renderMatchBox("M2", true)}
-          ${this.renderMatchBox("M3", true)}
+        <div class="bracket-row" style="justify-content: center;">
+          ${this.renderFinalsBox(["M1", "M2", "M3"])}
         </div>
       </div>
     `;
@@ -245,8 +301,7 @@ const BracketDisplay = {
             </div>
             <div class="round-column"></div>
             <div class="round-column">
-              ${this.renderMatchBox("M6", true)}
-              ${this.renderMatchBox("M7", true)}
+              ${this.renderFinalsBox(["M6", "M7"])}
             </div>
           </div>
         </div>
@@ -299,8 +354,7 @@ const BracketDisplay = {
             </div>
             <div class="round-column"></div>
             <div class="round-column">
-              ${this.renderMatchBox("M10", true)}
-              ${this.renderMatchBox("M11", true)}
+              ${this.renderFinalsBox(["M10", "M11"])}
             </div>
           </div>
         </div>
@@ -361,8 +415,7 @@ const BracketDisplay = {
             </div>
             <div class="round-column"></div>
             <div class="round-column">
-              ${this.renderMatchBox("M14", true)}
-              ${this.renderMatchBox("M15", true)}
+              ${this.renderFinalsBox(["M14", "M15"])}
             </div>
           </div>
         </div>

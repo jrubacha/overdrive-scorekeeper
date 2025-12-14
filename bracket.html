@@ -206,13 +206,37 @@
     .finals-box {
       width: 220px;
       background: linear-gradient(135deg, #2a2a4a 0%, #1a1a3a 100%);
-      border: 3px solid var(--winner-highlight);
+      border: 3px solid var(--match-border);
       border-radius: 12px;
     }
 
+    .finals-box.current {
+      border-color: var(--accent-yellow);
+      box-shadow: 0 0 20px rgba(255, 193, 7, 0.4);
+    }
+
     .finals-box .match-header {
-      background: rgba(255, 215, 0, 0.2);
+      background: rgba(100, 100, 150, 0.3);
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+
+    .finals-wins {
+      font-weight: 700;
       font-size: 1.1rem;
+      color: var(--winner-highlight);
+      min-width: 20px;
+      text-align: right;
+    }
+
+    .finals-status {
+      text-align: center;
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      background: rgba(0, 0, 0, 0.2);
+      border-top: 1px solid var(--match-border);
     }
 
     /* Champion display */
