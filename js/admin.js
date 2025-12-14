@@ -23,6 +23,9 @@ const Admin = {
     await this.loadMatches();
     this.loadCurrentMatch();
 
+    // Initialize playoffs
+    await this.initPlayoffs();
+
     // Listen for connection changes
     window.addEventListener("db:connectionChange", () => this.updateConnectionStatus());
   },
@@ -795,6 +798,755 @@ const Admin = {
     container.appendChild(toast);
 
     setTimeout(() => toast.remove(), 3000);
+  },
+
+  // ================
+  // PLAYOFFS
+  // ================
+
+  playoffSettings: null,
+  alliances: {},
+  bracketState: null,
+  rankedTeams: [],
+
+  async initPlayoffs() {
+    // Load playoff settings
+    this.playoffSettings = await DB.getPlayoffSettings();
+    this.alliances = await DB.getAlliances();
+    this.bracketState = await DB.getBracket();
+
+    // Calculate rankings for alliance selection
+    await this.calculateRankings();
+
+    // Bind playoff events
+    this.bindPlayoffEvents();
+
+    // Render initial state
+    this.updatePlayoffUI();
+
+    // Subscribe to updates
+    this.unsubscribers.push(
+      DB.subscribeToPlayoffSettings((settings) => {
+        this.playoffSettings = settings || { allianceMode: "2-team", status: "setup" };
+        this.updatePlayoffUI();
+      })
+    );
+
+    this.unsubscribers.push(
+      DB.subscribeToAlliances((alliances) => {
+        this.alliances = alliances || {};
+        this.updatePlayoffUI();
+      })
+    );
+
+    this.unsubscribers.push(
+      DB.subscribeToBracket((bracket) => {
+        this.bracketState = bracket;
+        this.updatePlayoffUI();
+      })
+    );
+  },
+
+  bindPlayoffEvents() {
+    // Alliance mode toggle
+    document.getElementById("mode-2team")?.addEventListener("click", () => {
+      this.setAllianceMode("2-team");
+    });
+
+    document.getElementById("mode-1team")?.addEventListener("click", () => {
+      const teamCount = Object.keys(this.teams).length;
+      if (teamCount > 20) {
+        this.showToast("1-team mode only available for 20 or fewer teams", "error");
+        return;
+      }
+      this.setAllianceMode("1-team");
+    });
+
+    // Start alliance selection (2-team mode)
+    document.getElementById("start-alliance-selection-btn")?.addEventListener("click", () => {
+      this.startAllianceSelection();
+    });
+
+    // Generate bracket (1-team mode)
+    document.getElementById("generate-bracket-btn")?.addEventListener("click", () => {
+      this.generateBracketDirect();
+    });
+
+    // Confirm alliances and generate bracket
+    document.getElementById("confirm-alliances-btn")?.addEventListener("click", () => {
+      this.confirmAlliancesAndGenerateBracket();
+    });
+
+    // Set next match as current
+    document.getElementById("bracket-next-match-btn")?.addEventListener("click", () => {
+      this.setNextBracketMatch();
+    });
+
+    // Reset playoffs
+    document.getElementById("reset-playoffs-btn")?.addEventListener("click", () => {
+      this.confirmResetPlayoffs();
+    });
+  },
+
+  async calculateRankings() {
+    // Simple ranking based on win rate from played matches
+    const teamStats = {};
+
+    // Initialize all teams
+    for (const [teamId, team] of Object.entries(this.teams)) {
+      teamStats[teamId] = {
+        teamId,
+        teamNumber: team.number,
+        teamName: team.name || "",
+        matchesPlayed: 0,
+        wins: 0,
+        totalScore: 0
+      };
+    }
+
+    // Process matches
+    for (const [matchId, match] of Object.entries(this.matches)) {
+      const scores = await DB.getMatchScores(matchId);
+      if (!scores) continue;
+
+      // Check if match has been played
+      let hasScores = false;
+      for (const pos of ["red1", "red2", "blue1", "blue2"]) {
+        const actions = scores[pos]?.actions;
+        if (actions && Object.values(actions).some(v => v > 0)) {
+          hasScores = true;
+          break;
+        }
+      }
+
+      if (!hasScores) continue;
+
+      // Calculate alliance scores
+      const redScore = this.calculateAllianceScore(scores, "red");
+      const blueScore = this.calculateAllianceScore(scores, "blue");
+
+      // Update team stats
+      for (const pos of ["red1", "red2"]) {
+        const teamId = match[pos];
+        if (teamStats[teamId]) {
+          teamStats[teamId].matchesPlayed++;
+          teamStats[teamId].totalScore += redScore;
+          if (redScore > blueScore) teamStats[teamId].wins++;
+        }
+      }
+
+      for (const pos of ["blue1", "blue2"]) {
+        const teamId = match[pos];
+        if (teamStats[teamId]) {
+          teamStats[teamId].matchesPlayed++;
+          teamStats[teamId].totalScore += blueScore;
+          if (blueScore > redScore) teamStats[teamId].wins++;
+        }
+      }
+    }
+
+    // Sort by win rate, then total score
+    this.rankedTeams = Object.values(teamStats)
+      .sort((a, b) => {
+        const aRate = a.matchesPlayed > 0 ? a.wins / a.matchesPlayed : 0;
+        const bRate = b.matchesPlayed > 0 ? b.wins / b.matchesPlayed : 0;
+        if (bRate !== aRate) return bRate - aRate;
+        return b.totalScore - a.totalScore;
+      });
+  },
+
+  calculateAllianceScore(scores, alliance) {
+    const pos1 = alliance === "red" ? "red1" : "blue1";
+    const pos2 = alliance === "red" ? "red2" : "blue2";
+
+    const actions1 = scores[pos1]?.actions || {};
+    const actions2 = scores[pos2]?.actions || {};
+
+    return ScoringRules.calculateRobotScore(actions1) +
+           ScoringRules.calculateRobotScore(actions2);
+  },
+
+  async setAllianceMode(mode) {
+    if (this.playoffSettings?.status !== "setup") {
+      this.showToast("Cannot change mode after playoffs started", "error");
+      return;
+    }
+
+    this.playoffSettings = {
+      ...this.playoffSettings,
+      allianceMode: mode,
+      status: "setup"
+    };
+
+    await DB.savePlayoffSettings(this.playoffSettings);
+    this.updatePlayoffUI();
+  },
+
+  updatePlayoffUI() {
+    const teamCount = Object.keys(this.teams).length;
+    const settings = this.playoffSettings || { allianceMode: "2-team", status: "setup" };
+
+    // Update team count display
+    const teamCountEl = document.getElementById("playoff-team-count");
+    if (teamCountEl) teamCountEl.textContent = teamCount;
+
+    // Update alliance count display
+    const allianceCount = Bracket.getAllianceCount(teamCount, settings.allianceMode);
+    const allianceCountEl = document.getElementById("playoff-alliance-count");
+    if (allianceCountEl) {
+      allianceCountEl.textContent = allianceCount ? allianceCount : "N/A";
+    }
+
+    // Update mode toggle
+    const mode2team = document.getElementById("mode-2team");
+    const mode1team = document.getElementById("mode-1team");
+
+    if (mode2team) {
+      mode2team.classList.toggle("selected", settings.allianceMode === "2-team");
+    }
+    if (mode1team) {
+      mode1team.classList.toggle("selected", settings.allianceMode === "1-team");
+      mode1team.classList.toggle("disabled", teamCount > 20);
+    }
+
+    // Show/hide elements based on status
+    const setupCard = document.getElementById("playoff-setup-card");
+    const selectionCard = document.getElementById("alliance-selection-card");
+    const bracketCard = document.getElementById("bracket-management-card");
+    const championCard = document.getElementById("champion-card");
+    const startSelectionBtn = document.getElementById("start-alliance-selection-btn");
+    const generateBracketBtn = document.getElementById("generate-bracket-btn");
+
+    // Reset visibility
+    if (setupCard) setupCard.style.display = "block";
+    if (selectionCard) selectionCard.style.display = "none";
+    if (bracketCard) bracketCard.style.display = "none";
+    if (championCard) championCard.style.display = "none";
+    if (startSelectionBtn) startSelectionBtn.style.display = "none";
+    if (generateBracketBtn) generateBracketBtn.style.display = "none";
+
+    if (settings.status === "setup") {
+      // Show appropriate button based on mode
+      if (teamCount >= 4) {
+        if (settings.allianceMode === "2-team") {
+          if (startSelectionBtn) startSelectionBtn.style.display = "block";
+        } else {
+          if (generateBracketBtn) generateBracketBtn.style.display = "block";
+        }
+      }
+    } else if (settings.status === "alliance_selection") {
+      if (selectionCard) {
+        selectionCard.style.display = "block";
+        this.renderAllianceSelection();
+      }
+    } else if (settings.status === "in_progress" || settings.status === "bracket_ready") {
+      if (bracketCard) {
+        bracketCard.style.display = "block";
+        this.renderBracketManagement();
+      }
+    }
+
+    // Show champion if complete
+    if (this.bracketState?.status === "complete" && this.bracketState?.champion) {
+      if (championCard) {
+        championCard.style.display = "block";
+        this.renderChampionDisplay();
+      }
+    }
+  },
+
+  async startAllianceSelection() {
+    await this.calculateRankings();
+
+    const teamCount = Object.keys(this.teams).length;
+    const allianceCount = Bracket.getAllianceCount(teamCount, "2-team");
+
+    if (!allianceCount || teamCount < 4) {
+      this.showToast("Not enough teams for playoffs", "error");
+      return;
+    }
+
+    // Initialize alliances with captains from ranked teams
+    const alliances = {};
+    for (let i = 1; i <= allianceCount; i++) {
+      const captain = this.rankedTeams[i - 1];
+      alliances[i] = {
+        seed: i,
+        captain: captain?.teamId || null,
+        pick: null,
+        teams: captain ? [captain.teamId] : []
+      };
+    }
+
+    await DB.saveAllAlliances(alliances);
+    await DB.savePlayoffSettings({
+      ...this.playoffSettings,
+      status: "alliance_selection"
+    });
+
+    this.showToast("Alliance selection started", "success");
+  },
+
+  renderAllianceSelection() {
+    const container = document.getElementById("alliance-selection-grid");
+    const countEl = document.getElementById("alliances-formed-count");
+    const confirmBtn = document.getElementById("confirm-alliances-btn");
+
+    if (!container) return;
+
+    const allianceCount = Object.keys(this.alliances).length;
+
+    // Get available teams (not captains and not picked)
+    const takenTeamIds = new Set();
+    for (const alliance of Object.values(this.alliances)) {
+      if (alliance.captain) takenTeamIds.add(alliance.captain);
+      if (alliance.pick) takenTeamIds.add(alliance.pick);
+    }
+
+    const availableTeams = this.rankedTeams.filter(t => !takenTeamIds.has(t.teamId));
+
+    // Count formed alliances
+    let formedCount = 0;
+    for (const alliance of Object.values(this.alliances)) {
+      if (alliance.captain && alliance.pick) formedCount++;
+    }
+
+    if (countEl) {
+      countEl.textContent = `${formedCount} of ${allianceCount} formed`;
+    }
+
+    if (confirmBtn) {
+      confirmBtn.disabled = formedCount < allianceCount;
+    }
+
+    // Render alliance rows
+    const rows = Object.entries(this.alliances)
+      .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+      .map(([num, alliance]) => {
+        const captain = this.teams[alliance.captain];
+        const pick = this.teams[alliance.pick];
+        const seedClass = num <= 3 ? `a${num}` : "";
+
+        // Build pick dropdown
+        let pickOptions = '<option value="">Select pick...</option>';
+
+        // Add current pick if exists
+        if (alliance.pick && pick) {
+          pickOptions += `<option value="${alliance.pick}" selected>${pick.number} - ${pick.name || "Team"}</option>`;
+        }
+
+        // Add available teams
+        for (const team of availableTeams) {
+          pickOptions += `<option value="${team.teamId}">${team.teamNumber} - ${team.teamName || "Team"}</option>`;
+        }
+
+        return `
+          <div class="alliance-row">
+            <div class="alliance-seed ${seedClass}">#${num}</div>
+            <div class="captain-display">
+              <div class="label">Captain</div>
+              <div class="team-num">${captain?.number || "?"}</div>
+            </div>
+            <div>
+              <select class="form-control alliance-pick-select" data-alliance="${num}" onchange="Admin.updateAlliancePick(${num}, this.value)">
+                ${pickOptions}
+              </select>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+    container.innerHTML = rows;
+  },
+
+  async updateAlliancePick(allianceNum, teamId) {
+    const alliance = this.alliances[allianceNum];
+    if (!alliance) return;
+
+    alliance.pick = teamId || null;
+    alliance.teams = [alliance.captain];
+    if (teamId) alliance.teams.push(teamId);
+
+    await DB.saveAlliance(allianceNum, alliance);
+  },
+
+  async confirmAlliancesAndGenerateBracket() {
+    // Verify all alliances are complete
+    for (const alliance of Object.values(this.alliances)) {
+      if (!alliance.captain || !alliance.pick) {
+        this.showToast("All alliances must have a captain and pick", "error");
+        return;
+      }
+    }
+
+    // Generate bracket
+    const allianceCount = Object.keys(this.alliances).length;
+    const bracketState = Bracket.generateBracket(allianceCount, this.alliances);
+
+    // Create playoff matches
+    await this.createPlayoffMatches(bracketState);
+
+    // Save bracket state
+    await DB.saveBracket(bracketState);
+
+    // Update playoff settings
+    await DB.savePlayoffSettings({
+      ...this.playoffSettings,
+      status: "in_progress"
+    });
+
+    this.showToast("Playoff bracket generated!", "success");
+  },
+
+  async generateBracketDirect() {
+    // For 1-team alliance mode
+    await this.calculateRankings();
+
+    const teamCount = Object.keys(this.teams).length;
+    const allianceCount = Bracket.getAllianceCount(teamCount, "1-team");
+
+    if (!allianceCount) {
+      this.showToast("Not enough teams for playoffs", "error");
+      return;
+    }
+
+    // Create alliances from ranked teams (1 team each)
+    const alliances = {};
+    for (let i = 1; i <= allianceCount; i++) {
+      const team = this.rankedTeams[i - 1];
+      alliances[i] = {
+        seed: i,
+        teams: team ? [team.teamId] : []
+      };
+    }
+
+    await DB.saveAllAlliances(alliances);
+
+    // Generate bracket
+    const bracketState = Bracket.generateBracket(allianceCount, alliances);
+
+    // Create playoff matches
+    await this.createPlayoffMatches(bracketState);
+
+    // Save bracket state
+    await DB.saveBracket(bracketState);
+
+    // Update playoff settings
+    await DB.savePlayoffSettings({
+      ...this.playoffSettings,
+      status: "in_progress"
+    });
+
+    this.showToast("Playoff bracket generated!", "success");
+  },
+
+  async createPlayoffMatches(bracketState) {
+    // Create a match in the matches collection for each bracket match
+    const is1Team = this.playoffSettings?.allianceMode === "1-team";
+
+    for (const [matchId, match] of Object.entries(bracketState.matches)) {
+      // Skip conditional matches that aren't needed yet
+      if (match.conditional) continue;
+
+      const playoffMatchId = `playoff_${matchId}`;
+
+      // Get team IDs from alliances
+      let red1 = null, red2 = null, blue1 = null, blue2 = null;
+
+      if (match.red !== null) {
+        const redAlliance = bracketState.alliances[match.red];
+        if (redAlliance?.teams) {
+          red1 = redAlliance.teams[0] || null;
+          red2 = is1Team ? redAlliance.teams[0] : (redAlliance.teams[1] || null);
+        }
+      }
+
+      if (match.blue !== null) {
+        const blueAlliance = bracketState.alliances[match.blue];
+        if (blueAlliance?.teams) {
+          blue1 = blueAlliance.teams[0] || null;
+          blue2 = is1Team ? blueAlliance.teams[0] : (blueAlliance.teams[1] || null);
+        }
+      }
+
+      // Create match
+      await DB.saveMatch(playoffMatchId, {
+        number: `P-${matchId}`,
+        red1,
+        red2,
+        blue1,
+        blue2,
+        type: "playoff",
+        bracketMatchId: matchId,
+        createdAt: Date.now()
+      });
+
+      // Update bracket with match reference
+      bracketState.matches[matchId].scoreMatchId = playoffMatchId;
+    }
+
+    // Save updated bracket state with match references
+    await DB.saveBracket(bracketState);
+  },
+
+  renderBracketManagement() {
+    if (!this.bracketState) return;
+
+    // Update status display
+    const statusDot = document.getElementById("bracket-status-dot");
+    const statusText = document.getElementById("bracket-status-text");
+
+    if (statusDot && statusText) {
+      if (this.bracketState.status === "complete") {
+        statusDot.className = "status-dot complete";
+        statusText.textContent = "Tournament Complete";
+      } else {
+        statusDot.className = "status-dot in-progress";
+        statusText.textContent = "In Progress";
+      }
+    }
+
+    // Render match list
+    const container = document.getElementById("bracket-matches-list");
+    if (!container) return;
+
+    const matchEntries = Object.entries(this.bracketState.matches)
+      .filter(([id, m]) => !m.conditional || Bracket.isConditionalMatchNeeded(this.bracketState, id))
+      .sort((a, b) => {
+        const numA = parseInt(a[0].substring(1));
+        const numB = parseInt(b[0].substring(1));
+        return numA - numB;
+      });
+
+    const rows = matchEntries.map(([matchId, match]) => {
+      const isReady = Bracket.isMatchReady(this.bracketState, matchId);
+      const isCurrent = this.matches[match.scoreMatchId] && match.scoreMatchId === this.currentMatchId;
+      const isCompleted = match.played;
+
+      const redAlliance = this.bracketState.alliances[match.red];
+      const blueAlliance = this.bracketState.alliances[match.blue];
+
+      const redDisplay = match.red !== null ? `Alliance ${match.red}` : "TBD";
+      const blueDisplay = match.blue !== null ? `Alliance ${match.blue}` : "TBD";
+
+      const redTeams = redAlliance?.teams?.map(id => this.teams[id]?.number).join(" & ") || "";
+      const blueTeams = blueAlliance?.teams?.map(id => this.teams[id]?.number).join(" & ") || "";
+
+      return `
+        <div class="bracket-match-item ${isCurrent ? "current" : ""} ${isCompleted ? "completed" : ""}">
+          <div class="match-id">${matchId}</div>
+          <div class="alliance-slot red ${match.red === null ? "tbd" : ""} ${match.winner === "red" ? "winner" : ""}">
+            ${redDisplay}${redTeams ? `<br><small>${redTeams}</small>` : ""}
+          </div>
+          <div class="alliance-slot blue ${match.blue === null ? "tbd" : ""} ${match.winner === "blue" ? "winner" : ""}">
+            ${blueDisplay}${blueTeams ? `<br><small>${blueTeams}</small>` : ""}
+          </div>
+          <div>
+            ${isCompleted ?
+              `<span style="color: var(--accent-green);">Done</span>` :
+              isReady ?
+                `<button class="btn btn-secondary btn-sm" onclick="Admin.setPlayoffMatchCurrent('${matchId}')">Set Current</button>` :
+                `<span style="color: var(--text-secondary);">Waiting</span>`
+            }
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    container.innerHTML = rows || '<p class="text-secondary">No matches in bracket</p>';
+  },
+
+  async setPlayoffMatchCurrent(bracketMatchId) {
+    const match = this.bracketState?.matches[bracketMatchId];
+    if (!match?.scoreMatchId) {
+      // Need to create the match first
+      await this.ensurePlayoffMatchExists(bracketMatchId);
+    }
+
+    const updatedMatch = this.bracketState?.matches[bracketMatchId];
+    if (updatedMatch?.scoreMatchId) {
+      await DB.setCurrentMatch(updatedMatch.scoreMatchId);
+      this.showToast(`${bracketMatchId} set as current match`, "success");
+    }
+  },
+
+  async ensurePlayoffMatchExists(bracketMatchId) {
+    // Create the playoff match if it doesn't exist
+    const match = this.bracketState?.matches[bracketMatchId];
+    if (!match) return;
+
+    const playoffMatchId = `playoff_${bracketMatchId}`;
+    const is1Team = this.playoffSettings?.allianceMode === "1-team";
+
+    let red1 = null, red2 = null, blue1 = null, blue2 = null;
+
+    if (match.red !== null) {
+      const redAlliance = this.bracketState.alliances[match.red];
+      if (redAlliance?.teams) {
+        red1 = redAlliance.teams[0] || null;
+        red2 = is1Team ? redAlliance.teams[0] : (redAlliance.teams[1] || null);
+      }
+    }
+
+    if (match.blue !== null) {
+      const blueAlliance = this.bracketState.alliances[match.blue];
+      if (blueAlliance?.teams) {
+        blue1 = blueAlliance.teams[0] || null;
+        blue2 = is1Team ? blueAlliance.teams[0] : (blueAlliance.teams[1] || null);
+      }
+    }
+
+    await DB.saveMatch(playoffMatchId, {
+      number: `P-${bracketMatchId}`,
+      red1,
+      red2,
+      blue1,
+      blue2,
+      type: "playoff",
+      bracketMatchId: bracketMatchId,
+      createdAt: Date.now()
+    });
+
+    // Update bracket state
+    this.bracketState.matches[bracketMatchId].scoreMatchId = playoffMatchId;
+    await DB.saveBracket(this.bracketState);
+  },
+
+  async setNextBracketMatch() {
+    if (!this.bracketState) return;
+
+    const nextMatchId = Bracket.getNextMatch(this.bracketState);
+    if (nextMatchId) {
+      await this.setPlayoffMatchCurrent(nextMatchId);
+    } else {
+      this.showToast("No ready matches available", "warning");
+    }
+  },
+
+  renderChampionDisplay() {
+    const container = document.getElementById("champion-display");
+    if (!container || !this.bracketState?.champion) return;
+
+    const championAlliance = this.bracketState.alliances[this.bracketState.champion];
+    const teams = championAlliance?.teams?.map(id => {
+      const team = this.teams[id];
+      return team ? `${team.number} - ${team.name || ""}` : id;
+    }) || [];
+
+    container.innerHTML = `
+      <div style="font-size: 4rem; margin-bottom: var(--spacing-md);">🏆</div>
+      <h2 style="font-size: 2rem; color: var(--accent-yellow); margin-bottom: var(--spacing-md);">
+        Alliance ${this.bracketState.champion}
+      </h2>
+      <div style="font-size: 1.25rem;">
+        ${teams.join("<br>")}
+      </div>
+    `;
+  },
+
+  confirmResetPlayoffs() {
+    showModal(
+      "Reset Playoffs?",
+      "This will delete all playoff data including alliances, bracket, and playoff matches. Qualification matches will not be affected.",
+      () => this.resetPlayoffs()
+    );
+  },
+
+  async resetPlayoffs() {
+    // Delete playoff matches
+    for (const [matchId, match] of Object.entries(this.matches)) {
+      if (match.type === "playoff") {
+        await DB.deleteMatch(matchId);
+        if (DB.db) {
+          await DB.db.ref(`scores/${matchId}`).remove();
+        }
+      }
+    }
+
+    // Clear playoff data
+    await DB.clearPlayoffData();
+
+    // Reset local state
+    this.playoffSettings = { allianceMode: "2-team", status: "setup" };
+    this.alliances = {};
+    this.bracketState = null;
+
+    // Save fresh settings
+    await DB.savePlayoffSettings(this.playoffSettings);
+
+    this.updatePlayoffUI();
+    this.showToast("Playoffs reset", "warning");
+    closeModal();
+  },
+
+  // Record a bracket match result (called after match is finalized)
+  async recordBracketResult(playoffMatchId, winner) {
+    if (!this.bracketState) return;
+
+    // Find the bracket match
+    let bracketMatchId = null;
+    for (const [id, match] of Object.entries(this.bracketState.matches)) {
+      if (match.scoreMatchId === playoffMatchId) {
+        bracketMatchId = id;
+        break;
+      }
+    }
+
+    if (!bracketMatchId) return;
+
+    // Record result and advance teams
+    this.bracketState = Bracket.recordResult(this.bracketState, bracketMatchId, winner);
+
+    // Create any new matches that are now ready
+    await this.createNewBracketMatches();
+
+    // Save updated bracket
+    await DB.saveBracket(this.bracketState);
+
+    if (this.bracketState.status === "complete") {
+      this.showToast(`Tournament complete! Alliance ${this.bracketState.champion} wins!`, "success");
+    }
+  },
+
+  async createNewBracketMatches() {
+    // Create matches for any bracket matches that are now ready
+    const is1Team = this.playoffSettings?.allianceMode === "1-team";
+
+    for (const [matchId, match] of Object.entries(this.bracketState.matches)) {
+      if (match.scoreMatchId) continue; // Already exists
+      if (match.conditional && !Bracket.isConditionalMatchNeeded(this.bracketState, matchId)) continue;
+      if (match.red === null || match.blue === null) continue; // Not ready
+
+      const playoffMatchId = `playoff_${matchId}`;
+
+      const redAlliance = this.bracketState.alliances[match.red];
+      const blueAlliance = this.bracketState.alliances[match.blue];
+
+      let red1 = null, red2 = null, blue1 = null, blue2 = null;
+
+      if (redAlliance?.teams) {
+        red1 = redAlliance.teams[0] || null;
+        red2 = is1Team ? redAlliance.teams[0] : (redAlliance.teams[1] || null);
+      }
+
+      if (blueAlliance?.teams) {
+        blue1 = blueAlliance.teams[0] || null;
+        blue2 = is1Team ? blueAlliance.teams[0] : (blueAlliance.teams[1] || null);
+      }
+
+      await DB.saveMatch(playoffMatchId, {
+        number: `P-${matchId}`,
+        red1,
+        red2,
+        blue1,
+        blue2,
+        type: "playoff",
+        bracketMatchId: matchId,
+        createdAt: Date.now()
+      });
+
+      this.bracketState.matches[matchId].scoreMatchId = playoffMatchId;
+    }
   }
 };
 

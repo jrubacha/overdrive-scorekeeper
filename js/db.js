@@ -300,6 +300,87 @@ const DB = {
 
   subscribeToMatchState(matchId, callback) {
     return this.subscribe(`matchState/${matchId}`, callback);
+  },
+
+  // ============================================
+  // Playoff Bracket Operations
+  // ============================================
+
+  // Playoff settings (alliance mode, etc.)
+  async getPlayoffSettings() {
+    return (await this.read("playoffSettings")) || {
+      allianceMode: "2-team",
+      status: "setup" // setup, alliance_selection, bracket_ready, in_progress, complete
+    };
+  },
+
+  async savePlayoffSettings(settings) {
+    await this.write("playoffSettings", settings);
+  },
+
+  subscribeToPlayoffSettings(callback) {
+    return this.subscribe("playoffSettings", callback);
+  },
+
+  // Alliances (for 2-team mode, stores captain + pick)
+  async getAlliances() {
+    return (await this.read("alliances")) || {};
+  },
+
+  async saveAlliance(allianceNumber, allianceData) {
+    await this.write(`alliances/${allianceNumber}`, allianceData);
+  },
+
+  async saveAllAlliances(alliances) {
+    await this.write("alliances", alliances);
+  },
+
+  async clearAlliances() {
+    if (this.db) {
+      await this.db.ref("alliances").remove();
+    }
+    this.updateLocalCache("alliances", {});
+  },
+
+  subscribeToAlliances(callback) {
+    return this.subscribe("alliances", callback);
+  },
+
+  // Bracket state (matches, results, advancement)
+  async getBracket() {
+    return await this.read("bracket");
+  },
+
+  async saveBracket(bracketState) {
+    await this.write("bracket", bracketState);
+  },
+
+  async updateBracketMatch(matchId, matchData) {
+    await this.update(`bracket/matches/${matchId}`, matchData);
+  },
+
+  async setBracketStatus(status) {
+    await this.update("bracket", { status });
+  },
+
+  async setBracketChampion(allianceNumber) {
+    await this.update("bracket", { champion: allianceNumber, status: "complete" });
+  },
+
+  subscribeToBracket(callback) {
+    return this.subscribe("bracket", callback);
+  },
+
+  // Clear all playoff data (for reset)
+  async clearPlayoffData() {
+    if (this.db) {
+      await this.db.ref("playoffSettings").remove();
+      await this.db.ref("alliances").remove();
+      await this.db.ref("bracket").remove();
+    }
+    this.updateLocalCache("playoffSettings", null);
+    this.updateLocalCache("alliances", null);
+    this.updateLocalCache("bracket", null);
   }
 };
 

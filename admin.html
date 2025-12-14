@@ -184,6 +184,188 @@
       color: var(--text-secondary);
       font-size: 0.9rem;
     }
+
+    /* Playoff styles */
+    .mode-toggle {
+      display: flex;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .mode-option {
+      flex: 1;
+      padding: var(--spacing-md);
+      background: var(--bg-secondary);
+      border: 2px solid transparent;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-option:hover {
+      border-color: var(--blue-alliance);
+    }
+
+    .mode-option.selected {
+      border-color: var(--accent-green);
+      background: rgba(40, 167, 69, 0.1);
+    }
+
+    .mode-option.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .mode-option h4 {
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .mode-option p {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+
+    .alliance-info-box {
+      background: var(--bg-secondary);
+      padding: var(--spacing-md);
+      border-radius: var(--border-radius);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .alliance-info-box .stat {
+      display: flex;
+      justify-content: space-between;
+      padding: var(--spacing-xs) 0;
+      border-bottom: 1px solid var(--bg-card);
+    }
+
+    .alliance-info-box .stat:last-child {
+      border-bottom: none;
+    }
+
+    .alliance-selection-grid {
+      display: grid;
+      gap: var(--spacing-md);
+    }
+
+    .alliance-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 1fr;
+      gap: var(--spacing-md);
+      align-items: center;
+      padding: var(--spacing-md);
+      background: var(--bg-secondary);
+      border-radius: var(--border-radius);
+    }
+
+    .alliance-row.one-team {
+      grid-template-columns: 80px 1fr;
+    }
+
+    .alliance-seed {
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .alliance-seed.a1 { color: #ffd700; }
+    .alliance-seed.a2 { color: #c0c0c0; }
+    .alliance-seed.a3 { color: #cd7f32; }
+
+    .captain-display {
+      padding: var(--spacing-sm);
+      background: var(--bg-card);
+      border-radius: var(--border-radius-sm);
+      text-align: center;
+    }
+
+    .captain-display .team-num {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .captain-display .label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    .bracket-status {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-md);
+      background: var(--bg-secondary);
+      border-radius: var(--border-radius);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+
+    .status-dot.setup { background: var(--accent-yellow); }
+    .status-dot.in-progress { background: var(--accent-green); }
+    .status-dot.complete { background: var(--blue-alliance); }
+
+    .bracket-matches-list {
+      display: grid;
+      gap: var(--spacing-sm);
+    }
+
+    .bracket-match-item {
+      display: grid;
+      grid-template-columns: 80px 1fr 1fr 100px;
+      gap: var(--spacing-md);
+      align-items: center;
+      padding: var(--spacing-md);
+      background: var(--bg-secondary);
+      border-radius: var(--border-radius);
+      border: 2px solid transparent;
+    }
+
+    .bracket-match-item.current {
+      border-color: var(--accent-yellow);
+    }
+
+    .bracket-match-item.completed {
+      opacity: 0.7;
+    }
+
+    .bracket-match-item .match-id {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .bracket-match-item .alliance-slot {
+      padding: var(--spacing-sm);
+      border-radius: var(--border-radius-sm);
+      text-align: center;
+    }
+
+    .bracket-match-item .alliance-slot.red {
+      background: rgba(220, 53, 69, 0.2);
+      border: 1px solid var(--red-alliance);
+    }
+
+    .bracket-match-item .alliance-slot.blue {
+      background: rgba(13, 110, 253, 0.2);
+      border: 1px solid var(--blue-alliance);
+    }
+
+    .bracket-match-item .alliance-slot.winner {
+      border-width: 2px;
+      font-weight: 700;
+    }
+
+    .bracket-match-item .alliance-slot.tbd {
+      background: var(--bg-card);
+      border: 1px dashed var(--text-muted);
+      color: var(--text-secondary);
+    }
   </style>
 </head>
 <body>
@@ -200,6 +382,7 @@
     <a href="#teams" class="active" data-section="teams">Teams</a>
     <a href="#matches" data-section="matches">Matches</a>
     <a href="#current" data-section="current">Current Match</a>
+    <a href="#playoffs" data-section="playoffs">Playoffs</a>
     <a href="#data" data-section="data">Data</a>
   </nav>
 
@@ -350,6 +533,105 @@
     </div>
   </section>
 
+  <!-- Playoffs Section -->
+  <section id="playoffs-section" class="admin-section">
+    <div class="container">
+      <!-- Playoff Setup Card -->
+      <div class="card" id="playoff-setup-card">
+        <div class="card-header">
+          <h2 class="card-title">Playoff Setup</h2>
+        </div>
+
+        <div class="alliance-info-box">
+          <div class="stat">
+            <span>Teams Registered</span>
+            <span id="playoff-team-count">0</span>
+          </div>
+          <div class="stat">
+            <span>Playoff Alliances</span>
+            <span id="playoff-alliance-count">-</span>
+          </div>
+        </div>
+
+        <h4 style="margin-bottom: var(--spacing-sm);">Alliance Mode</h4>
+        <div class="mode-toggle">
+          <div class="mode-option selected" id="mode-2team" data-mode="2-team">
+            <h4>2-Team Alliances</h4>
+            <p>Standard FTC style. Top teams pick partners.</p>
+          </div>
+          <div class="mode-option" id="mode-1team" data-mode="1-team">
+            <h4>1-Team Alliances</h4>
+            <p>Classroom variant. Each team competes solo.</p>
+          </div>
+        </div>
+
+        <div id="playoff-action-buttons">
+          <button id="start-alliance-selection-btn" class="btn btn-primary btn-lg btn-block" style="display: none;">
+            Start Alliance Selection
+          </button>
+          <button id="generate-bracket-btn" class="btn btn-success btn-lg btn-block" style="display: none;">
+            Generate Playoff Bracket
+          </button>
+        </div>
+      </div>
+
+      <!-- Alliance Selection Card (2-team mode only) -->
+      <div class="card" id="alliance-selection-card" style="display: none;">
+        <div class="card-header">
+          <h2 class="card-title">Alliance Selection</h2>
+          <span id="alliances-formed-count" class="text-secondary">0 of 0 formed</span>
+        </div>
+        <p style="color: var(--text-secondary); margin-bottom: var(--spacing-md);">
+          Captains are assigned by ranking. Select a partner for each captain.
+        </p>
+        <div id="alliance-selection-grid" class="alliance-selection-grid">
+          <!-- Alliance rows populated by JS -->
+        </div>
+        <div style="margin-top: var(--spacing-lg);">
+          <button id="confirm-alliances-btn" class="btn btn-success btn-lg" disabled>
+            Confirm Alliances & Generate Bracket
+          </button>
+        </div>
+      </div>
+
+      <!-- Bracket Management Card -->
+      <div class="card" id="bracket-management-card" style="display: none;">
+        <div class="card-header">
+          <h2 class="card-title">Playoff Bracket</h2>
+        </div>
+
+        <div class="bracket-status">
+          <div class="status-dot" id="bracket-status-dot"></div>
+          <span id="bracket-status-text">Not Started</span>
+        </div>
+
+        <div class="grid-2 mb-md">
+          <a href="bracket.html" class="btn btn-primary btn-lg" target="_blank">Open Bracket Display</a>
+          <button id="bracket-next-match-btn" class="btn btn-success btn-lg">Set Next Match</button>
+        </div>
+
+        <h4 style="margin: var(--spacing-md) 0 var(--spacing-sm);">Bracket Matches</h4>
+        <div id="bracket-matches-list" class="bracket-matches-list">
+          <!-- Match items populated by JS -->
+        </div>
+
+        <div style="margin-top: var(--spacing-lg); padding-top: var(--spacing-md); border-top: 1px solid var(--bg-card);">
+          <button id="reset-playoffs-btn" class="btn btn-danger">Reset Playoffs</button>
+        </div>
+      </div>
+
+      <!-- Champion Display (when complete) -->
+      <div class="card" id="champion-card" style="display: none;">
+        <div class="card-header">
+          <h2 class="card-title">Tournament Champion</h2>
+        </div>
+        <div id="champion-display" style="text-align: center; padding: var(--spacing-xl);">
+          <!-- Champion info populated by JS -->
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Data Management Section -->
   <section id="data-section" class="admin-section">
     <div class="container">
@@ -438,6 +720,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/scoring-rules.js"></script>
   <script src="js/db.js"></script>
+  <script src="js/bracket.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>
