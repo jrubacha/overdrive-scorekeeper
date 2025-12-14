@@ -155,7 +155,7 @@ const Scorer = {
   },
 
   // Handle position selection change
-  onPositionChange() {
+  async onPositionChange() {
     this.position = this.elements.positionSelect.value;
 
     // Update badge and theme
@@ -174,7 +174,7 @@ const Scorer = {
       document.body.classList.remove("theme-red", "theme-blue");
     }
 
-    this.updateTeamSelect();
+    await this.updateTeamSelect();
     this.checkCanStart();
     this.saveState();
   },
@@ -182,7 +182,7 @@ const Scorer = {
   // Handle match selection change
   async onMatchChange() {
     this.matchId = this.elements.matchSelect.value;
-    this.updateTeamSelect();
+    await this.updateTeamSelect();
     this.checkCanStart();
     this.saveState();
   },
