@@ -605,7 +605,13 @@ const Admin = {
 
     const is1v1 = this.matchSettings.format === "1v1";
 
-    // Build schedule rows
+    // Helper to format team display
+    const formatTeam = (team) => {
+      if (!team) return "TBD";
+      return `${team.number} - ${team.name || ""}`;
+    };
+
+    // Build schedule rows - different format for 1v1 vs 2v2
     const rows = qualMatches.map(([id, match], index) => {
       // Calculate time for this match
       const matchTime = new Date(startDate.getTime() + index * cycleMinutes * 60000);
@@ -615,31 +621,33 @@ const Admin = {
         hour12: true
       });
 
-      // Get team names
+      // Get team data
       const red1 = this.teams[match.red1];
       const red2 = this.teams[match.red2];
       const blue1 = this.teams[match.blue1];
       const blue2 = this.teams[match.blue2];
 
-      let redTeams, blueTeams;
       if (is1v1) {
-        redTeams = red1 ? `${red1.number} - ${red1.name || ""}` : "TBD";
-        blueTeams = blue1 ? `${blue1.number} - ${blue1.name || ""}` : "TBD";
+        return `
+          <tr>
+            <td class="match-num">${match.number}</td>
+            <td class="match-time">${timeStr}</td>
+            <td class="red-col">${formatTeam(red1)}</td>
+            <td class="blue-col">${formatTeam(blue1)}</td>
+          </tr>
+        `;
       } else {
-        const redNames = [red1, red2].filter(Boolean).map(t => `${t.number}`).join(" & ");
-        const blueNames = [blue1, blue2].filter(Boolean).map(t => `${t.number}`).join(" & ");
-        redTeams = redNames || "TBD";
-        blueTeams = blueNames || "TBD";
+        return `
+          <tr>
+            <td class="match-num">${match.number}</td>
+            <td class="match-time">${timeStr}</td>
+            <td class="red-col">${formatTeam(red1)}</td>
+            <td class="red-col">${formatTeam(red2)}</td>
+            <td class="blue-col">${formatTeam(blue1)}</td>
+            <td class="blue-col">${formatTeam(blue2)}</td>
+          </tr>
+        `;
       }
-
-      return `
-        <tr>
-          <td>${match.number}</td>
-          <td>${timeStr}</td>
-          <td>${redTeams}</td>
-          <td>${blueTeams}</td>
-        </tr>
-      `;
     }).join("");
 
     // Calculate end time
@@ -649,6 +657,23 @@ const Admin = {
       minute: "2-digit",
       hour12: true
     });
+
+    // Build header row based on format
+    const headerRow = is1v1
+      ? `<tr>
+          <th class="match-num">Match</th>
+          <th class="match-time">Time</th>
+          <th class="red-col">Red</th>
+          <th class="blue-col">Blue</th>
+        </tr>`
+      : `<tr>
+          <th class="match-num">Match</th>
+          <th class="match-time">Time</th>
+          <th class="red-col">Red 1</th>
+          <th class="red-col">Red 2</th>
+          <th class="blue-col">Blue 1</th>
+          <th class="blue-col">Blue 2</th>
+        </tr>`;
 
     // Build print-friendly HTML
     const html = `
@@ -660,7 +685,7 @@ const Admin = {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: Arial, sans-serif;
-      font-size: 11pt;
+      font-size: 10pt;
       padding: 0.5in;
       color: #000;
     }
@@ -678,19 +703,19 @@ const Admin = {
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 10pt;
+      font-size: 9pt;
     }
     th, td {
       border: 1px solid #333;
-      padding: 4px 8px;
+      padding: 3px 6px;
       text-align: left;
     }
     th {
       background: #eee;
       font-weight: bold;
     }
-    .match-num { width: 60px; text-align: center; }
-    .match-time { width: 80px; text-align: center; }
+    .match-num { width: 50px; text-align: center; }
+    .match-time { width: 70px; text-align: center; }
     .red-col { background: #fee; }
     .blue-col { background: #eef; }
     tr:nth-child(even) td { background: #f9f9f9; }
@@ -715,12 +740,7 @@ const Admin = {
   </div>
   <table>
     <thead>
-      <tr>
-        <th class="match-num">Match</th>
-        <th class="match-time">Time</th>
-        <th class="red-col">Red Alliance</th>
-        <th class="blue-col">Blue Alliance</th>
-      </tr>
+      ${headerRow}
     </thead>
     <tbody>
       ${rows}
@@ -1632,16 +1652,12 @@ const Admin = {
 
     const allianceCount = Object.keys(this.alliances).length;
 
-    // Get ALL teams that have been assigned to any alliance (captains + picks)
-    const takenTeamIds = new Set();
+    // Get teams that have been PICKED (are in someone's pick field)
+    // Captains are NOT excluded - they can still be picked (and will slide up)
+    const pickedTeamIds = new Set();
     for (const alliance of Object.values(this.alliances)) {
-      // Add all teams in the alliance (captain + pick)
-      if (alliance.teams) {
-        alliance.teams.forEach(id => takenTeamIds.add(id));
-      } else {
-        // Fallback if teams array not populated
-        if (alliance.captain) takenTeamIds.add(alliance.captain);
-        if (alliance.pick) takenTeamIds.add(alliance.pick);
+      if (alliance.pick) {
+        pickedTeamIds.add(alliance.pick);
       }
     }
 
@@ -1676,16 +1692,16 @@ const Admin = {
         }
 
         // Add available teams for this alliance to pick
-        // Available = all ranked teams NOT in takenTeamIds, EXCEPT allow this alliance's own pick
+        // Available = ranked teams not yet picked; captains CAN be picked (triggers slide-up)
         for (const team of this.rankedTeams) {
-          // Skip if this team is the current alliance's captain
+          // Skip if this team is the current alliance's captain (can't pick yourself)
           if (team.teamId === alliance.captain) continue;
 
           // Skip if already selected by this alliance (we added it above)
           if (team.teamId === alliance.pick) continue;
 
-          // Skip if this team is taken by another alliance
-          if (takenTeamIds.has(team.teamId)) continue;
+          // Skip if this team has already been picked by any alliance
+          if (pickedTeamIds.has(team.teamId)) continue;
 
           const label = `${team.teamNumber} - ${team.teamName || "Team"}`;
           pickOptions += `<option value="${team.teamId}">${label}</option>`;
