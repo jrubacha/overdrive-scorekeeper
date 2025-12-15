@@ -10,6 +10,7 @@ const Scorer = {
   isScoring: false,
   unsubscribers: [],     // For cleanup
   matchesSubscribed: false,  // Track if we've already subscribed
+  matchSettings: { format: "2v2", maxMatches: 45 },
 
   // DOM Elements
   elements: {},
@@ -23,6 +24,7 @@ const Scorer = {
     await DB.init();
     this.updateConnectionStatus();
     this.loadMatches();
+    await this.loadMatchSettings();
     this.loadSavedState();
 
     // Listen for connection changes
@@ -146,6 +148,43 @@ const Scorer = {
       option.value = id;
       option.textContent = `Match ${match.number}`;
       select.appendChild(option);
+    }
+  },
+
+  // Load match settings (1v1 vs 2v2 mode)
+  async loadMatchSettings() {
+    this.matchSettings = await DB.getMatchSettings();
+    this.updatePositionOptions();
+
+    // Subscribe to settings changes
+    this.unsubscribers.push(
+      DB.subscribeToMatchSettings((settings) => {
+        this.matchSettings = settings || { format: "2v2", maxMatches: 45 };
+        this.updatePositionOptions();
+      })
+    );
+  },
+
+  // Show/hide position 2 options based on match format
+  updatePositionOptions() {
+    const select = this.elements.positionSelect;
+    if (!select) return;
+
+    const is1v1 = this.matchSettings.format === "1v1";
+
+    // Get or create option elements
+    Array.from(select.options).forEach(option => {
+      if (option.value === "blue2" || option.value === "red2") {
+        option.style.display = is1v1 ? "none" : "";
+        option.disabled = is1v1;
+      }
+    });
+
+    // If currently selected position is hidden, reset selection
+    if (is1v1 && (this.position === "blue2" || this.position === "red2")) {
+      select.value = "";
+      this.position = null;
+      this.onPositionChange();
     }
   },
 

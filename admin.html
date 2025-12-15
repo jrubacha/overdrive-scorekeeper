@@ -243,6 +243,36 @@
       border-bottom: none;
     }
 
+    /* Match Generation Styles */
+    .match-gen-info {
+      background: var(--bg-secondary);
+      padding: var(--spacing-md);
+      border-radius: var(--border-radius);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .match-gen-info .stat {
+      display: flex;
+      justify-content: space-between;
+      padding: var(--spacing-xs) 0;
+      border-bottom: 1px solid var(--bg-card);
+    }
+
+    .match-gen-info .stat:last-child {
+      border-bottom: none;
+    }
+
+    .match-gen-buttons {
+      display: flex;
+      gap: var(--spacing-md);
+      flex-wrap: wrap;
+    }
+
+    .match-gen-buttons .btn-lg {
+      flex: 1;
+      min-width: 200px;
+    }
+
     .alliance-selection-grid {
       display: grid;
       gap: var(--spacing-md);
@@ -448,9 +478,51 @@
   <!-- Matches Section -->
   <section id="matches-section" class="admin-section">
     <div class="container">
+      <!-- Match Generation Card -->
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">Create Match</h2>
+          <h2 class="card-title">Match Generation</h2>
+        </div>
+
+        <div class="match-gen-info">
+          <div class="stat">
+            <span>Teams Available</span>
+            <span id="match-gen-team-count">0</span>
+          </div>
+          <div class="stat">
+            <span>Matches to Generate</span>
+            <span id="match-gen-estimate">0</span>
+          </div>
+        </div>
+
+        <h4 style="margin-bottom: var(--spacing-sm);">Match Format</h4>
+        <div class="mode-toggle">
+          <div class="mode-option" id="format-1v1" data-format="1v1">
+            <h4>1v1</h4>
+            <p>Single robot per alliance. Great for smaller events.</p>
+          </div>
+          <div class="mode-option selected" id="format-2v2" data-format="2v2">
+            <h4>2v2</h4>
+            <p>Standard FTC format. Two robots per alliance.</p>
+          </div>
+        </div>
+
+        <div class="form-group mt-md">
+          <label class="form-label">Maximum Matches</label>
+          <input type="number" id="max-matches-input" class="form-control" value="45" min="1" max="200">
+          <small class="text-secondary">Limit total generated matches (default: 45)</small>
+        </div>
+
+        <div class="match-gen-buttons mt-md">
+          <button id="generate-matches-btn" class="btn btn-success btn-lg">Generate Matches</button>
+          <button id="clear-qual-matches-btn" class="btn btn-danger">Clear Qualification Matches</button>
+        </div>
+      </div>
+
+      <!-- Manual Match Creation Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Create Match Manually</h2>
         </div>
         <form id="add-match-form">
           <div class="form-group">

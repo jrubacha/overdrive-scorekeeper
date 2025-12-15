@@ -8,6 +8,7 @@ const Admin = {
   currentMatchScores: null,
   scoreUnsubscriber: null,
   unsubscribers: [],
+  matchSettings: { format: "2v2", maxMatches: 45 },
 
   // Initialize
   async init() {
@@ -22,6 +23,7 @@ const Admin = {
     await this.loadTeams();
     await this.loadMatches();
     this.loadCurrentMatch();
+    await this.loadMatchSettings();
 
     // Initialize playoffs
     await this.initPlayoffs();
@@ -97,6 +99,18 @@ const Admin = {
     document.getElementById("import-data-input").addEventListener("change", (e) => this.importData(e));
     document.getElementById("clear-cache-btn").addEventListener("click", () => this.confirmClearCache());
     document.getElementById("reset-all-btn").addEventListener("click", () => this.confirmResetAll());
+
+    // Match generation
+    document.getElementById("format-1v1")?.addEventListener("click", () => this.setMatchFormat("1v1"));
+    document.getElementById("format-2v2")?.addEventListener("click", () => this.setMatchFormat("2v2"));
+    document.getElementById("max-matches-input")?.addEventListener("change", (e) => {
+      this.matchSettings.maxMatches = Math.max(1, Math.min(200, parseInt(e.target.value) || 45));
+      e.target.value = this.matchSettings.maxMatches;
+      this.updateMatchGenEstimate();
+      DB.saveMatchSettings(this.matchSettings);
+    });
+    document.getElementById("generate-matches-btn")?.addEventListener("click", () => this.confirmGenerateMatches());
+    document.getElementById("clear-qual-matches-btn")?.addEventListener("click", () => this.confirmClearQualMatches());
   },
 
   // Update connection status
@@ -144,6 +158,7 @@ const Admin = {
     this.teams = (await DB.getTeams()) || {};
     this.renderTeams();
     this.populateTeamSelects();
+    this.updateMatchGenUI();
 
     // Subscribe to updates
     this.unsubscribers.push(
@@ -151,6 +166,7 @@ const Admin = {
         this.teams = teams || {};
         this.renderTeams();
         this.populateTeamSelects();
+        this.updateMatchGenUI();
       })
     );
   },
@@ -204,6 +220,357 @@ const Admin = {
       select.innerHTML = '<option value="">Select team...</option>' + teamOptions;
       if (currentValue) select.value = currentValue;
     });
+  },
+
+  // ================
+  // MATCH GENERATION
+  // ================
+
+  async loadMatchSettings() {
+    this.matchSettings = await DB.getMatchSettings();
+    this.updateMatchGenUI();
+  },
+
+  setMatchFormat(format) {
+    if (format === this.matchSettings.format) return;
+
+    this.matchSettings.format = format;
+    DB.saveMatchSettings(this.matchSettings);
+    this.updateMatchGenUI();
+  },
+
+  updateMatchGenUI() {
+    // Update format toggle
+    document.getElementById("format-1v1")?.classList.toggle("selected", this.matchSettings.format === "1v1");
+    document.getElementById("format-2v2")?.classList.toggle("selected", this.matchSettings.format === "2v2");
+
+    // Update max matches input
+    const maxInput = document.getElementById("max-matches-input");
+    if (maxInput) maxInput.value = this.matchSettings.maxMatches;
+
+    // Update team count
+    const teamCount = Object.keys(this.teams).length;
+    const teamCountEl = document.getElementById("match-gen-team-count");
+    if (teamCountEl) teamCountEl.textContent = teamCount;
+
+    // Update match estimate
+    this.updateMatchGenEstimate();
+  },
+
+  updateMatchGenEstimate() {
+    const teamCount = Object.keys(this.teams).length;
+    const estimateEl = document.getElementById("match-gen-estimate");
+    if (!estimateEl) return;
+
+    let totalPossible = 0;
+    if (this.matchSettings.format === "1v1") {
+      // For 1v1: n*(n-1)/2 unique matchups
+      totalPossible = (teamCount * (teamCount - 1)) / 2;
+    } else {
+      // For 2v2: more complex - estimate based on combinations
+      // Each match needs 4 unique teams, and we want variety
+      if (teamCount >= 4) {
+        // Rough estimate: combinations of 4 teams from n teams, divided by some factor
+        totalPossible = Math.floor((teamCount * (teamCount - 1) * (teamCount - 2) * (teamCount - 3)) / 24);
+        // Cap at a reasonable round-robin estimate
+        totalPossible = Math.min(totalPossible, teamCount * 5);
+      }
+    }
+
+    const matchCount = Math.min(totalPossible, this.matchSettings.maxMatches);
+    estimateEl.textContent = teamCount < (this.matchSettings.format === "1v1" ? 2 : 4)
+      ? "Need more teams"
+      : matchCount;
+  },
+
+  confirmGenerateMatches() {
+    const teamCount = Object.keys(this.teams).length;
+    const minTeams = this.matchSettings.format === "1v1" ? 2 : 4;
+
+    if (teamCount < minTeams) {
+      this.showToast(`Need at least ${minTeams} teams for ${this.matchSettings.format} matches`, "error");
+      return;
+    }
+
+    // Check if qualification matches already exist
+    const qualMatches = Object.values(this.matches).filter(m => m.type !== "playoff");
+    if (qualMatches.length > 0) {
+      showModal(
+        "Replace Existing Matches?",
+        `There are ${qualMatches.length} qualification matches. Generating new matches will delete them. Continue?`,
+        () => this.generateMatches()
+      );
+    } else {
+      this.generateMatches();
+    }
+  },
+
+  async generateMatches() {
+    closeModal();
+
+    const teamIds = Object.keys(this.teams);
+    const format = this.matchSettings.format;
+    const maxMatches = this.matchSettings.maxMatches;
+
+    this.showToast("Generating matches...", "info");
+
+    // Delete existing qualification matches
+    await DB.deleteAllQualificationMatches();
+
+    let matchList = [];
+
+    if (format === "1v1") {
+      matchList = this.generate1v1Matches(teamIds, maxMatches);
+    } else {
+      matchList = this.generate2v2Matches(teamIds, maxMatches);
+    }
+
+    // Save matches to database
+    for (let i = 0; i < matchList.length; i++) {
+      const match = matchList[i];
+      const matchId = `match_${Date.now()}_${i}`;
+      await DB.saveMatch(matchId, {
+        number: i + 1,
+        red1: match.red1,
+        red2: match.red2 || match.red1, // For 1v1, duplicate the team
+        blue1: match.blue1,
+        blue2: match.blue2 || match.blue1, // For 1v1, duplicate the team
+        type: "qualification",
+        createdAt: Date.now()
+      });
+    }
+
+    this.showToast(`Generated ${matchList.length} matches!`, "success");
+  },
+
+  generate1v1Matches(teamIds, maxMatches) {
+    // Generate all unique 1v1 pairings
+    const allPairings = [];
+    for (let i = 0; i < teamIds.length; i++) {
+      for (let j = i + 1; j < teamIds.length; j++) {
+        allPairings.push([teamIds[i], teamIds[j]]);
+      }
+    }
+
+    // Shuffle for randomness
+    this.shuffleArray(allPairings);
+
+    // Limit to maxMatches
+    const selectedPairings = allPairings.slice(0, maxMatches);
+
+    // Balance red/blue positions
+    const positionCount = {}; // teamId -> { red: count, blue: count }
+    teamIds.forEach(id => positionCount[id] = { red: 0, blue: 0 });
+
+    const matches = [];
+    for (const [teamA, teamB] of selectedPairings) {
+      // Decide which team is red based on position balance
+      const aNetRed = positionCount[teamA].red - positionCount[teamA].blue;
+      const bNetRed = positionCount[teamB].red - positionCount[teamB].blue;
+
+      let red1, blue1;
+      if (aNetRed <= bNetRed) {
+        red1 = teamA;
+        blue1 = teamB;
+      } else {
+        red1 = teamB;
+        blue1 = teamA;
+      }
+
+      positionCount[red1].red++;
+      positionCount[blue1].blue++;
+
+      matches.push({ red1, blue1 });
+    }
+
+    return matches;
+  },
+
+  generate2v2Matches(teamIds, maxMatches) {
+    const n = teamIds.length;
+    if (n < 4) return [];
+
+    // Track statistics for balancing
+    const stats = {};
+    teamIds.forEach(id => {
+      stats[id] = {
+        played: 0,
+        partners: new Set(),
+        opponents: new Set(),
+        red: 0,
+        blue: 0
+      };
+    });
+
+    const matches = [];
+    const usedCombinations = new Set();
+
+    // Generate matches using a greedy algorithm that prioritizes:
+    // 1. Teams playing with new partners
+    // 2. Teams playing against new opponents
+    // 3. Balancing total games played
+    // 4. Balancing red/blue positions
+
+    const maxIterations = maxMatches * 100; // Prevent infinite loops
+    let iterations = 0;
+
+    while (matches.length < maxMatches && iterations < maxIterations) {
+      iterations++;
+
+      // Find teams with fewest games played
+      const teamsByGames = [...teamIds].sort((a, b) => stats[a].played - stats[b].played);
+
+      // Try to build a match with the least-played teams
+      const match = this.tryBuildMatch(teamsByGames, stats, usedCombinations);
+
+      if (match) {
+        matches.push(match);
+
+        // Update stats
+        const { red1, red2, blue1, blue2 } = match;
+        const redTeam = [red1, red2];
+        const blueTeam = [blue1, blue2];
+        const allTeams = [...redTeam, ...blueTeam];
+
+        allTeams.forEach(t => stats[t].played++);
+
+        // Partners
+        stats[red1].partners.add(red2);
+        stats[red2].partners.add(red1);
+        stats[blue1].partners.add(blue2);
+        stats[blue2].partners.add(blue1);
+
+        // Opponents
+        redTeam.forEach(r => blueTeam.forEach(b => {
+          stats[r].opponents.add(b);
+          stats[b].opponents.add(r);
+        }));
+
+        // Position tracking
+        stats[red1].red++;
+        stats[red2].red++;
+        stats[blue1].blue++;
+        stats[blue2].blue++;
+
+        // Mark combination as used
+        const key = this.getMatchKey(red1, red2, blue1, blue2);
+        usedCombinations.add(key);
+      }
+    }
+
+    return matches;
+  },
+
+  tryBuildMatch(teamsByGames, stats, usedCombinations) {
+    // Try multiple times to find a valid match
+    for (let attempt = 0; attempt < 50; attempt++) {
+      // Select 4 teams, preferring those with fewer games
+      const candidates = [];
+      const available = [...teamsByGames];
+
+      while (candidates.length < 4 && available.length > 0) {
+        // Weight selection towards less-played teams
+        const weights = available.map(t => 1 / (stats[t].played + 1));
+        const totalWeight = weights.reduce((a, b) => a + b, 0);
+        let r = Math.random() * totalWeight;
+
+        for (let i = 0; i < available.length; i++) {
+          r -= weights[i];
+          if (r <= 0) {
+            candidates.push(available.splice(i, 1)[0]);
+            break;
+          }
+        }
+      }
+
+      if (candidates.length < 4) continue;
+
+      // Try all ways to divide 4 teams into 2 alliances
+      const divisions = [
+        [[0, 1], [2, 3]],
+        [[0, 2], [1, 3]],
+        [[0, 3], [1, 2]]
+      ];
+
+      // Shuffle divisions for variety
+      this.shuffleArray(divisions);
+
+      for (const [[r1, r2], [b1, b2]] of divisions) {
+        const redTeam = [candidates[r1], candidates[r2]];
+        const blueTeam = [candidates[b1], candidates[b2]];
+
+        // Check if this combination was used
+        const key = this.getMatchKey(redTeam[0], redTeam[1], blueTeam[0], blueTeam[1]);
+        if (usedCombinations.has(key)) continue;
+
+        // Score this division based on novelty
+        let score = 0;
+
+        // Prefer new partnerships
+        if (!stats[redTeam[0]].partners.has(redTeam[1])) score += 10;
+        if (!stats[blueTeam[0]].partners.has(blueTeam[1])) score += 10;
+
+        // Prefer new opponents
+        redTeam.forEach(r => blueTeam.forEach(b => {
+          if (!stats[r].opponents.has(b)) score += 5;
+        }));
+
+        // Balance red/blue
+        const redDiff = redTeam.reduce((sum, t) => sum + stats[t].red - stats[t].blue, 0);
+        const blueDiff = blueTeam.reduce((sum, t) => sum + stats[t].blue - stats[t].red, 0);
+
+        // Swap if it would improve balance
+        let finalRed = redTeam;
+        let finalBlue = blueTeam;
+        if (redDiff > blueDiff) {
+          finalRed = blueTeam;
+          finalBlue = redTeam;
+        }
+
+        return {
+          red1: finalRed[0],
+          red2: finalRed[1],
+          blue1: finalBlue[0],
+          blue2: finalBlue[1]
+        };
+      }
+    }
+
+    return null;
+  },
+
+  getMatchKey(r1, r2, b1, b2) {
+    // Create a unique key for a match combination
+    const redKey = [r1, r2].sort().join("-");
+    const blueKey = [b1, b2].sort().join("-");
+    return [redKey, blueKey].sort().join("_vs_");
+  },
+
+  shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  },
+
+  confirmClearQualMatches() {
+    const qualMatches = Object.values(this.matches).filter(m => m.type !== "playoff");
+    if (qualMatches.length === 0) {
+      this.showToast("No qualification matches to clear", "info");
+      return;
+    }
+
+    showModal(
+      "Clear Qualification Matches?",
+      `This will delete ${qualMatches.length} qualification matches and their scores. Playoff matches will not be affected.`,
+      () => this.clearQualMatches()
+    );
+  },
+
+  async clearQualMatches() {
+    await DB.deleteAllQualificationMatches();
+    this.showToast("Qualification matches cleared", "warning");
+    closeModal();
   },
 
   async addTeam() {

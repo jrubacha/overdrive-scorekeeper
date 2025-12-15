@@ -381,6 +381,38 @@ const DB = {
     this.updateLocalCache("playoffSettings", null);
     this.updateLocalCache("alliances", null);
     this.updateLocalCache("bracket", null);
+  },
+
+  // ============================================
+  // Match Generation Settings
+  // ============================================
+
+  async getMatchSettings() {
+    return (await this.read("matchSettings")) || {
+      format: "2v2",      // "1v1" or "2v2"
+      maxMatches: 45
+    };
+  },
+
+  async saveMatchSettings(settings) {
+    await this.write("matchSettings", settings);
+  },
+
+  subscribeToMatchSettings(callback) {
+    return this.subscribe("matchSettings", callback);
+  },
+
+  // Delete all qualification matches (for regeneration)
+  async deleteAllQualificationMatches() {
+    const matches = await this.getMatches();
+    for (const [matchId, match] of Object.entries(matches)) {
+      if (match.type !== "playoff") {
+        await this.deleteMatch(matchId);
+        if (this.db) {
+          await this.db.ref(`scores/${matchId}`).remove();
+        }
+      }
+    }
   }
 };
 
