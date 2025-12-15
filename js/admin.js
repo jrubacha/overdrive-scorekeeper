@@ -1653,12 +1653,18 @@ const Admin = {
     const allianceCount = Object.keys(this.alliances).length;
 
     // Get teams that have been PICKED (are in someone's pick field)
-    // Captains are NOT excluded - they can still be picked (and will slide up)
+    // Captains CAN be picked (and will slide up), EXCEPT Alliance 1's captain
     const pickedTeamIds = new Set();
     for (const alliance of Object.values(this.alliances)) {
       if (alliance.pick) {
         pickedTeamIds.add(alliance.pick);
       }
+    }
+
+    // Alliance 1's captain (top seed) is NEVER pickable
+    const alliance1Captain = this.alliances[1]?.captain;
+    if (alliance1Captain) {
+      pickedTeamIds.add(alliance1Captain);
     }
 
     // Count formed alliances
