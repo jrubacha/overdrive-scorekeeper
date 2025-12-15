@@ -1652,19 +1652,23 @@ const Admin = {
 
     const allianceCount = Object.keys(this.alliances).length;
 
-    // Get teams that have been PICKED (are in someone's pick field)
-    // Captains CAN be picked (and will slide up), EXCEPT Alliance 1's captain
-    const pickedTeamIds = new Set();
+    // Get teams that are unavailable for picking:
+    // 1. Any team on a "settled" alliance (one that has both captain AND pick)
+    // 2. Alliance 1's captain is ALWAYS unavailable (top seed protection)
+    const unavailableTeamIds = new Set();
+
     for (const alliance of Object.values(this.alliances)) {
-      if (alliance.pick) {
-        pickedTeamIds.add(alliance.pick);
+      // If alliance has completed their pick, both members are unavailable
+      if (alliance.captain && alliance.pick) {
+        unavailableTeamIds.add(alliance.captain);
+        unavailableTeamIds.add(alliance.pick);
       }
     }
 
-    // Alliance 1's captain (top seed) is NEVER pickable
+    // Alliance 1's captain (top seed) is NEVER pickable, even before they pick
     const alliance1Captain = this.alliances[1]?.captain;
     if (alliance1Captain) {
-      pickedTeamIds.add(alliance1Captain);
+      unavailableTeamIds.add(alliance1Captain);
     }
 
     // Count formed alliances
@@ -1706,8 +1710,8 @@ const Admin = {
           // Skip if already selected by this alliance (we added it above)
           if (team.teamId === alliance.pick) continue;
 
-          // Skip if this team has already been picked by any alliance
-          if (pickedTeamIds.has(team.teamId)) continue;
+          // Skip if this team is unavailable (on a settled alliance or is Alliance 1 captain)
+          if (unavailableTeamIds.has(team.teamId)) continue;
 
           const label = `${team.teamNumber} - ${team.teamName || "Team"}`;
           pickOptions += `<option value="${team.teamId}">${label}</option>`;
