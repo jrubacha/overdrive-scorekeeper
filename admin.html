@@ -519,6 +519,27 @@
         </div>
       </div>
 
+      <!-- Printable Schedule Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Printable Schedule</h2>
+        </div>
+        <p style="color: var(--text-secondary); margin-bottom: var(--spacing-md);">
+          Generate a print-friendly match schedule with times.
+        </p>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">First Match Start Time</label>
+            <input type="time" id="schedule-start-time" class="form-control" value="09:00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cycle Time (minutes)</label>
+            <input type="number" id="schedule-cycle-time" class="form-control" value="8" min="1" max="60">
+          </div>
+        </div>
+        <button id="print-schedule-btn" class="btn btn-primary">Print Match Schedule</button>
+      </div>
+
       <!-- Manual Match Creation Card -->
       <div class="card">
         <div class="card-header">

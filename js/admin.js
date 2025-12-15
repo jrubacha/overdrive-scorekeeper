@@ -111,6 +111,9 @@ const Admin = {
     });
     document.getElementById("generate-matches-btn")?.addEventListener("click", () => this.confirmGenerateMatches());
     document.getElementById("clear-qual-matches-btn")?.addEventListener("click", () => this.confirmClearQualMatches());
+
+    // Printable schedule
+    document.getElementById("print-schedule-btn")?.addEventListener("click", () => this.printMatchSchedule());
   },
 
   // Update connection status
@@ -571,6 +574,172 @@ const Admin = {
     await DB.deleteAllQualificationMatches();
     this.showToast("Qualification matches cleared", "warning");
     closeModal();
+  },
+
+  // Print match schedule
+  printMatchSchedule() {
+    const startTimeInput = document.getElementById("schedule-start-time");
+    const cycleTimeInput = document.getElementById("schedule-cycle-time");
+
+    const startTimeStr = startTimeInput?.value || "09:00";
+    const cycleMinutes = parseInt(cycleTimeInput?.value) || 8;
+
+    // Parse start time
+    const [startHour, startMin] = startTimeStr.split(":").map(Number);
+    const startDate = new Date();
+    startDate.setHours(startHour, startMin, 0, 0);
+
+    // Get and sort qualification matches
+    const qualMatches = Object.entries(this.matches)
+      .filter(([id, m]) => m.type !== "playoff")
+      .sort((a, b) => {
+        const numA = typeof a[1].number === "number" ? a[1].number : parseInt(a[1].number) || 0;
+        const numB = typeof b[1].number === "number" ? b[1].number : parseInt(b[1].number) || 0;
+        return numA - numB;
+      });
+
+    if (qualMatches.length === 0) {
+      this.showToast("No matches to print", "error");
+      return;
+    }
+
+    const is1v1 = this.matchSettings.format === "1v1";
+
+    // Build schedule rows
+    const rows = qualMatches.map(([id, match], index) => {
+      // Calculate time for this match
+      const matchTime = new Date(startDate.getTime() + index * cycleMinutes * 60000);
+      const timeStr = matchTime.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+      });
+
+      // Get team names
+      const red1 = this.teams[match.red1];
+      const red2 = this.teams[match.red2];
+      const blue1 = this.teams[match.blue1];
+      const blue2 = this.teams[match.blue2];
+
+      let redTeams, blueTeams;
+      if (is1v1) {
+        redTeams = red1 ? `${red1.number} - ${red1.name || ""}` : "TBD";
+        blueTeams = blue1 ? `${blue1.number} - ${blue1.name || ""}` : "TBD";
+      } else {
+        const redNames = [red1, red2].filter(Boolean).map(t => `${t.number}`).join(" & ");
+        const blueNames = [blue1, blue2].filter(Boolean).map(t => `${t.number}`).join(" & ");
+        redTeams = redNames || "TBD";
+        blueTeams = blueNames || "TBD";
+      }
+
+      return `
+        <tr>
+          <td>${match.number}</td>
+          <td>${timeStr}</td>
+          <td>${redTeams}</td>
+          <td>${blueTeams}</td>
+        </tr>
+      `;
+    }).join("");
+
+    // Calculate end time
+    const endDate = new Date(startDate.getTime() + qualMatches.length * cycleMinutes * 60000);
+    const endTimeStr = endDate.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
+
+    // Build print-friendly HTML
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Match Schedule</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 11pt;
+      padding: 0.5in;
+      color: #000;
+    }
+    h1 {
+      font-size: 16pt;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+    .subtitle {
+      font-size: 10pt;
+      color: #666;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+    }
+    th, td {
+      border: 1px solid #333;
+      padding: 4px 8px;
+      text-align: left;
+    }
+    th {
+      background: #eee;
+      font-weight: bold;
+    }
+    .match-num { width: 60px; text-align: center; }
+    .match-time { width: 80px; text-align: center; }
+    .red-col { background: #fee; }
+    .blue-col { background: #eef; }
+    tr:nth-child(even) td { background: #f9f9f9; }
+    tr:nth-child(even) td.red-col { background: #fdd; }
+    tr:nth-child(even) td.blue-col { background: #ddf; }
+    .footer {
+      margin-top: 12px;
+      font-size: 9pt;
+      color: #666;
+      text-align: center;
+    }
+    @media print {
+      body { padding: 0.25in; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Match Schedule</h1>
+  <div class="subtitle">
+    ${qualMatches.length} matches | ${is1v1 ? "1v1" : "2v2"} format | ${cycleMinutes} min cycle | ${startTimeStr} - ${endTimeStr}
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th class="match-num">Match</th>
+        <th class="match-time">Time</th>
+        <th class="red-col">Red Alliance</th>
+        <th class="blue-col">Blue Alliance</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+    </tbody>
+  </table>
+  <div class="footer">
+    Generated ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+  </div>
+  <div class="no-print" style="margin-top: 20px; text-align: center;">
+    <button onclick="window.print()" style="padding: 10px 20px; font-size: 14px; cursor: pointer;">Print Schedule</button>
+  </div>
+</body>
+</html>
+    `;
+
+    // Open in new window
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(html);
+    printWindow.document.close();
   },
 
   async addTeam() {
@@ -1463,20 +1632,18 @@ const Admin = {
 
     const allianceCount = Object.keys(this.alliances).length;
 
-    // Get teams that have already been picked (not captains - captains can be picked)
-    const pickedTeamIds = new Set();
+    // Get ALL teams that have been assigned to any alliance (captains + picks)
+    const takenTeamIds = new Set();
     for (const alliance of Object.values(this.alliances)) {
-      if (alliance.pick) pickedTeamIds.add(alliance.pick);
+      // Add all teams in the alliance (captain + pick)
+      if (alliance.teams) {
+        alliance.teams.forEach(id => takenTeamIds.add(id));
+      } else {
+        // Fallback if teams array not populated
+        if (alliance.captain) takenTeamIds.add(alliance.captain);
+        if (alliance.pick) takenTeamIds.add(alliance.pick);
+      }
     }
-
-    // Get current captain IDs
-    const captainIds = new Set();
-    for (const alliance of Object.values(this.alliances)) {
-      if (alliance.captain) captainIds.add(alliance.captain);
-    }
-
-    // Available teams = all ranked teams minus those already picked
-    const availableTeams = this.rankedTeams.filter(t => !pickedTeamIds.has(t.teamId));
 
     // Count formed alliances
     let formedCount = 0;
@@ -1500,23 +1667,27 @@ const Admin = {
         const pick = this.teams[alliance.pick];
         const seedClass = num <= 3 ? `a${num}` : "";
 
-        // Build pick dropdown - exclude picked teams, but allow picking captains
+        // Build pick dropdown
         let pickOptions = '<option value="">Select pick...</option>';
 
-        // Add current pick if exists
+        // Add current pick if exists (always show as selected)
         if (alliance.pick && pick) {
           pickOptions += `<option value="${alliance.pick}" selected>${pick.number} - ${pick.name || "Team"}</option>`;
         }
 
-        // Add available teams (includes captains of other alliances, excludes own captain)
-        for (const team of availableTeams) {
-          // Skip if this is the current alliance's captain
+        // Add available teams for this alliance to pick
+        // Available = all ranked teams NOT in takenTeamIds, EXCEPT allow this alliance's own pick
+        for (const team of this.rankedTeams) {
+          // Skip if this team is the current alliance's captain
           if (team.teamId === alliance.captain) continue;
-          // Show captain indicator if this team is a captain of another alliance
-          const isCaptain = captainIds.has(team.teamId) && team.teamId !== alliance.captain;
-          const label = isCaptain
-            ? `${team.teamNumber} - ${team.teamName || "Team"} (Captain)`
-            : `${team.teamNumber} - ${team.teamName || "Team"}`;
+
+          // Skip if already selected by this alliance (we added it above)
+          if (team.teamId === alliance.pick) continue;
+
+          // Skip if this team is taken by another alliance
+          if (takenTeamIds.has(team.teamId)) continue;
+
+          const label = `${team.teamNumber} - ${team.teamName || "Team"}`;
           pickOptions += `<option value="${team.teamId}">${label}</option>`;
         }
 
