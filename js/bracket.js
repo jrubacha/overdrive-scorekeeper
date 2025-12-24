@@ -189,7 +189,7 @@ const Bracket = {
           redFrom: { match: "M3", result: "winner" },
           blueFrom: { match: "M4", result: "winner" },
           winnerTo: { match: "M10", slot: "red" },
-          loserTo: { match: "M9", slot: "red" },
+          loserTo: { match: "M9", slot: "blue" },
           description: "Upper Final"
         },
         // Lower Bracket Round 3
@@ -198,7 +198,7 @@ const Bracket = {
           round: "Round 3", bracket: "lower",
           redFrom: { match: "M6", result: "winner" },
           blueFrom: { match: "M5", result: "winner" },
-          winnerTo: { match: "M9", slot: "blue" },
+          winnerTo: { match: "M9", slot: "red" },
           loserTo: null, // 4th place
           description: "Lower R3",
           eliminationPlace: 4
@@ -207,8 +207,8 @@ const Bracket = {
         M9: {
           red: null, blue: null,
           round: "Round 4", bracket: "lower",
-          redFrom: { match: "M7", result: "loser" },
-          blueFrom: { match: "M8", result: "winner" },
+          redFrom: { match: "M8", result: "winner" },
+          blueFrom: { match: "M7", result: "loser" },
           winnerTo: { match: "M10", slot: "blue" },
           loserTo: null, // 3rd place
           description: "Lower Final",
@@ -277,7 +277,7 @@ const Bracket = {
           round: "Round 2", bracket: "lower",
           redFrom: { match: "M1", result: "loser" },
           blueFrom: { match: "M2", result: "loser" },
-          winnerTo: { match: "M10", slot: "blue" },
+          winnerTo: { match: "M10", slot: "red" },
           loserTo: null, // Tied 7th
           description: "Lower R2",
           eliminationPlace: 7
@@ -287,7 +287,7 @@ const Bracket = {
           round: "Round 2", bracket: "lower",
           redFrom: { match: "M3", result: "loser" },
           blueFrom: { match: "M4", result: "loser" },
-          winnerTo: { match: "M9", slot: "blue" },
+          winnerTo: { match: "M9", slot: "red" },
           loserTo: null, // Tied 7th
           description: "Lower R2",
           eliminationPlace: 7
@@ -299,7 +299,7 @@ const Bracket = {
           redFrom: { match: "M1", result: "winner" },
           blueFrom: { match: "M2", result: "winner" },
           winnerTo: { match: "M11", slot: "red" },
-          loserTo: { match: "M9", slot: "red" },
+          loserTo: { match: "M9", slot: "blue" },
           description: "Upper R2"
         },
         M8: {
@@ -308,15 +308,15 @@ const Bracket = {
           redFrom: { match: "M3", result: "winner" },
           blueFrom: { match: "M4", result: "winner" },
           winnerTo: { match: "M11", slot: "blue" },
-          loserTo: { match: "M10", slot: "red" },
+          loserTo: { match: "M10", slot: "blue" },
           description: "Upper R2"
         },
         // Lower Bracket Round 3
         M9: {
           red: null, blue: null,
           round: "Round 3", bracket: "lower",
-          redFrom: { match: "M7", result: "loser" },
-          blueFrom: { match: "M6", result: "winner" },
+          redFrom: { match: "M6", result: "winner" },
+          blueFrom: { match: "M7", result: "loser" },
           winnerTo: { match: "M12", slot: "blue" },
           loserTo: null, // Tied 5th
           description: "Lower R3",
@@ -325,8 +325,8 @@ const Bracket = {
         M10: {
           red: null, blue: null,
           round: "Round 3", bracket: "lower",
-          redFrom: { match: "M8", result: "loser" },
-          blueFrom: { match: "M5", result: "winner" },
+          redFrom: { match: "M5", result: "winner" },
+          blueFrom: { match: "M8", result: "loser" },
           winnerTo: { match: "M12", slot: "red" },
           loserTo: null, // Tied 5th
           description: "Lower R3",
@@ -339,7 +339,7 @@ const Bracket = {
           redFrom: { match: "M7", result: "winner" },
           blueFrom: { match: "M8", result: "winner" },
           winnerTo: { match: "M14", slot: "red" },
-          loserTo: { match: "M13", slot: "red" },
+          loserTo: { match: "M13", slot: "blue" },
           description: "Upper Final"
         },
         // Lower Bracket Round 4
@@ -348,7 +348,7 @@ const Bracket = {
           round: "Round 4", bracket: "lower",
           redFrom: { match: "M10", result: "winner" },
           blueFrom: { match: "M9", result: "winner" },
-          winnerTo: { match: "M13", slot: "blue" },
+          winnerTo: { match: "M13", slot: "red" },
           loserTo: null, // 4th place
           description: "Lower R4",
           eliminationPlace: 4
@@ -357,8 +357,8 @@ const Bracket = {
         M13: {
           red: null, blue: null,
           round: "Round 5", bracket: "lower",
-          redFrom: { match: "M11", result: "loser" },
-          blueFrom: { match: "M12", result: "winner" },
+          redFrom: { match: "M12", result: "winner" },
+          blueFrom: { match: "M11", result: "loser" },
           winnerTo: { match: "M14", slot: "blue" },
           loserTo: null, // 3rd place
           description: "Lower Final",

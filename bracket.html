@@ -231,6 +231,7 @@
       text-align: center;
       font-weight: 700;
       font-size: 0.85rem;
+      border-top: 1px solid var(--match-border);
       border-bottom: 1px solid var(--match-border);
     }
 
@@ -242,6 +243,10 @@
       align-items: center;
       border-bottom: 1px solid var(--match-border);
       transition: all 0.3s;
+    }
+
+    .alliance-slot:first-child {
+      border-bottom: none; /* Match header has border-top */
     }
 
     .alliance-slot:last-child {

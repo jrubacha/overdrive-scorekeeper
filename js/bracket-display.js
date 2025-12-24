@@ -180,12 +180,12 @@ const BracketDisplay = {
       };
     }
 
-    // If we have source info, show "W M#" or "L M#"
+    // If we have source info, show "Winner of M#" or "Loser of M#"
     if (slotFrom) {
-      const result = slotFrom.result === "winner" ? "W" : "L";
+      const result = slotFrom.result === "winner" ? "Winner of" : "Loser of";
       return {
         text: `${result} ${slotFrom.match}`,
-        subtext: slotFrom.result === "winner" ? "Winner" : "Loser",
+        subtext: "",
         type: slotFrom.result
       };
     }
@@ -258,11 +258,11 @@ const BracketDisplay = {
 
     return `
       <div class="${boxClasses.join(" ")}" data-match="${matchId}">
-        <div class="match-header">${matchId}</div>
         <div class="${getSlotClass(redDisplay, match.winner, "red")}">
           <span class="alliance-name">${redDisplay.text}</span>
           ${match.played && match.winner === "red" ? '<span class="winner-icon">&#9654;</span>' : ""}
         </div>
+        <div class="match-header">${matchId}</div>
         <div class="${getSlotClass(blueDisplay, match.winner, "blue")}">
           <span class="alliance-name">${blueDisplay.text}</span>
           ${match.played && match.winner === "blue" ? '<span class="winner-icon">&#9654;</span>' : ""}
@@ -402,15 +402,16 @@ const BracketDisplay = {
       const toRect = toBox.getBoundingClientRect();
 
       // Calculate connection points
-      // From: right edge, center of match box
+      // From: right edge, center of match box (where the match header is)
+      // With FIRST-style layout: Red (top) - Match# (middle) - Blue (bottom)
+      // The center is at 50%
       const fromX = fromRect.right - containerRect.left;
       const fromY = fromRect.top - containerRect.top + fromRect.height / 2;
 
-      // To: left edge, pointing to the specific slot (red = upper slot, blue = lower slot)
-      // The match box has a header (~25px) then two slots
-      // Red slot is roughly at 40% from top, blue slot at 75% from top
+      // To: left edge, pointing to the specific slot
+      // With FIRST-style layout: Red slot is at ~20% from top, Blue slot at ~80% from top
       const toX = toRect.left - containerRect.left;
-      const slotOffset = conn.slot === "red" ? 0.40 : 0.75;
+      const slotOffset = conn.slot === "red" ? 0.20 : 0.80;
       const toY = toRect.top - containerRect.top + toRect.height * slotOffset;
 
       // Create path with right angles
