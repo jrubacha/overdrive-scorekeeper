@@ -9,6 +9,39 @@ const BracketDisplay = {
   currentMatchId: null,
   unsubscribers: [],
 
+  // Define round layouts for each bracket size
+  // Each array represents a column (round), containing match IDs
+  roundLayouts: {
+    4: {
+      rounds: [
+        { label: "Round 1", matches: ["M1", "M2"] },
+        { label: "Round 2", matches: ["M3", "M4"] },
+        { label: "Round 3", matches: ["M5"] },
+        { label: "Finals", matches: ["M6", "M7"] }
+      ]
+    },
+    6: {
+      rounds: [
+        { label: "Round 1", matches: ["M1", "M2"] },
+        { label: "Round 2", matches: ["M3", "M4"] },
+        { label: "Round 3", matches: ["M5", "M6"] },
+        { label: "Round 4", matches: ["M7", "M8"] },
+        { label: "Round 5", matches: ["M9"] },
+        { label: "Finals", matches: ["M10", "M11"] }
+      ]
+    },
+    8: {
+      rounds: [
+        { label: "Round 1", matches: ["M1", "M2", "M3", "M4"] },
+        { label: "Round 2", matches: ["M5", "M6", "M7", "M8"] },
+        { label: "Round 3", matches: ["M9", "M10"] },
+        { label: "Round 4", matches: ["M11", "M12"] },
+        { label: "Round 5", matches: ["M13"] },
+        { label: "Finals", matches: ["M14", "M15"] }
+      ]
+    }
+  },
+
   async init() {
     await DB.init();
     this.updateConnectionStatus();
@@ -90,26 +123,17 @@ const BracketDisplay = {
     const allianceCount = this.bracketState.allianceCount || Object.keys(this.alliances).length;
 
     // Render appropriate bracket layout
-    switch (allianceCount) {
-      case 2:
-        container.innerHTML = this.render2AllianceBracket();
-        break;
-      case 4:
-        container.innerHTML = this.render4AllianceBracket();
-        break;
-      case 6:
-        container.innerHTML = this.render6AllianceBracket();
-        break;
-      case 8:
-        container.innerHTML = this.render8AllianceBracket();
-        break;
-      default:
-        container.innerHTML = `
-          <div class="no-bracket">
-            <h2>Unsupported Bracket Size</h2>
-            <p>This bracket size (${allianceCount} alliances) is not currently supported.</p>
-          </div>
-        `;
+    if (allianceCount === 2) {
+      container.innerHTML = this.render2AllianceBracket();
+    } else if (this.roundLayouts[allianceCount]) {
+      container.innerHTML = this.renderBracket(allianceCount);
+    } else {
+      container.innerHTML = `
+        <div class="no-bracket">
+          <h2>Unsupported Bracket Size</h2>
+          <p>This bracket size (${allianceCount} alliances) is not currently supported.</p>
+        </div>
+      `;
     }
 
     // Render champion if complete
@@ -120,65 +144,260 @@ const BracketDisplay = {
     }
   },
 
-  // Get match display data
-  getMatchData(matchId) {
+  // Get the slot display text for an alliance slot
+  getSlotDisplay(allianceNum, slotFrom, slot) {
+    // If we have an actual alliance number, show it
+    if (allianceNum != null) {
+      const alliance = this.bracketState?.alliances[allianceNum] || this.alliances[allianceNum];
+      const teamNumbers = alliance?.teams?.map(id => this.teams[id]?.number || "?").join(" & ") || "";
+      return {
+        text: `Alliance ${allianceNum}`,
+        subtext: teamNumbers,
+        type: "alliance"
+      };
+    }
+
+    // If we have source info, show "W M#" or "L M#"
+    if (slotFrom) {
+      const result = slotFrom.result === "winner" ? "W" : "L";
+      return {
+        text: `${result} ${slotFrom.match}`,
+        subtext: slotFrom.result === "winner" ? "Winner" : "Loser",
+        type: slotFrom.result
+      };
+    }
+
+    return { text: "TBD", subtext: "", type: "tbd" };
+  },
+
+  // Render a single match box with proper slot displays
+  renderMatchBox(matchId) {
     const match = this.bracketState?.matches[matchId];
-    if (!match) return null;
+    if (!match) return "";
 
     const isCurrent = match.scoreMatchId === this.currentMatchId;
+    const isConditional = match.conditional;
 
-    return {
-      id: matchId,
-      red: match.red,
-      blue: match.blue,
-      winner: match.winner,
-      played: match.played,
-      isCurrent,
-      redDisplay: this.getAllianceDisplay(match.red),
-      blueDisplay: this.getAllianceDisplay(match.blue)
-    };
-  },
-
-  getAllianceDisplay(allianceNum) {
-    if (allianceNum == null) {
-      return { name: "TBD", teams: "" };
+    // For conditional matches, check if they're needed
+    if (isConditional) {
+      const allianceCount = this.bracketState.allianceCount;
+      if (allianceCount === 2) {
+        // Best of 3 logic
+        let wins = { red: 0, blue: 0 };
+        for (const m of Object.values(this.bracketState.matches)) {
+          if (m.played) {
+            if (m.winner === "red") wins.red++;
+            else if (m.winner === "blue") wins.blue++;
+          }
+        }
+        if (wins.red >= 2 || wins.blue >= 2) {
+          return ""; // Match not needed
+        }
+        if (matchId === "M2" && wins.red + wins.blue < 1) {
+          return ""; // M2 not ready yet
+        }
+        if (matchId === "M3" && wins.red + wins.blue < 2) {
+          return ""; // M3 not ready yet
+        }
+      } else {
+        // Finals 2 needed only if lower bracket won Finals 1
+        const finals1Id = allianceCount === 4 ? "M6" : (allianceCount === 6 ? "M10" : "M14");
+        const finals1 = this.bracketState.matches[finals1Id];
+        if (!finals1?.played || finals1.winner !== "blue") {
+          if (!match.played) return ""; // Match not needed
+        }
+      }
     }
 
-    const alliance = this.bracketState?.alliances[allianceNum] || this.alliances[allianceNum];
-    if (!alliance) {
-      return { name: `Alliance ${allianceNum}`, teams: "" };
-    }
+    const redDisplay = this.getSlotDisplay(match.red, match.redFrom, "red");
+    const blueDisplay = this.getSlotDisplay(match.blue, match.blueFrom, "blue");
 
-    const teamNumbers = alliance.teams?.map(id => this.teams[id]?.number || "?").join(" & ") || "";
+    const boxClasses = ["match-box"];
+    if (isCurrent) boxClasses.push("current");
+    if (match.played) boxClasses.push("completed");
+    if (isConditional) boxClasses.push("conditional");
 
-    return {
-      name: `Alliance ${allianceNum}`,
-      teams: teamNumbers
+    // Determine slot classes
+    const getSlotClass = (display, winner, slot) => {
+      const classes = ["alliance-slot", slot];
+      if (display.type === "tbd") {
+        classes.push("tbd");
+      } else if (display.type === "winner") {
+        classes.push("from-winner");
+      } else if (display.type === "loser") {
+        classes.push("from-loser");
+      }
+      if (match.played && match.winner === slot) {
+        classes.push("winner");
+      }
+      return classes.join(" ");
     };
-  },
-
-  // Render a single match box
-  renderMatchBox(matchId, isFinalsMatch = false) {
-    const data = this.getMatchData(matchId);
-    if (!data) return "";
-
-    const boxClass = isFinalsMatch ? "match-box finals-box" : "match-box";
-    const currentClass = data.isCurrent ? "current" : "";
-    const completedClass = data.played ? "completed" : "";
-
-    const redSlotClass = data.red == null ? "tbd" : (data.winner === "red" ? "winner" : "");
-    const blueSlotClass = data.blue == null ? "tbd" : (data.winner === "blue" ? "winner" : "");
 
     return `
-      <div class="${boxClass} ${currentClass} ${completedClass}">
+      <div class="${boxClasses.join(" ")}" data-match="${matchId}">
         <div class="match-header">${matchId}</div>
-        <div class="alliance-slot red ${redSlotClass}">
-          <span class="alliance-name">${data.red != null ? data.redDisplay.name : "TBD"}</span>
-          ${data.winner === "red" ? '<span class="winner-icon">&#9654;</span>' : ""}
+        <div class="${getSlotClass(redDisplay, match.winner, "red")}">
+          <span class="alliance-name">${redDisplay.text}</span>
+          ${match.played && match.winner === "red" ? '<span class="winner-icon">&#9654;</span>' : ""}
         </div>
-        <div class="alliance-slot blue ${blueSlotClass}">
-          <span class="alliance-name">${data.blue != null ? data.blueDisplay.name : "TBD"}</span>
-          ${data.winner === "blue" ? '<span class="winner-icon">&#9654;</span>' : ""}
+        <div class="${getSlotClass(blueDisplay, match.winner, "blue")}">
+          <span class="alliance-name">${blueDisplay.text}</span>
+          ${match.played && match.winner === "blue" ? '<span class="winner-icon">&#9654;</span>' : ""}
+        </div>
+      </div>
+    `;
+  },
+
+  // Generate connector lines based on winnerTo paths
+  generateConnectors(allianceCount) {
+    const template = Bracket.templates[allianceCount];
+    if (!template) return "";
+
+    const connectors = [];
+
+    for (const [matchId, matchDef] of Object.entries(template.matches)) {
+      if (matchDef.winnerTo) {
+        connectors.push({
+          from: matchId,
+          to: matchDef.winnerTo.match,
+          slot: matchDef.winnerTo.slot
+        });
+      }
+    }
+
+    return connectors;
+  },
+
+  // Render the bracket using round-based layout
+  renderBracket(allianceCount) {
+    const layout = this.roundLayouts[allianceCount];
+    if (!layout) return "";
+
+    const rounds = layout.rounds;
+    const connectors = this.generateConnectors(allianceCount);
+
+    // Calculate max matches in any round for sizing
+    const maxMatches = Math.max(...rounds.map(r => r.matches.filter(m => !this.bracketState.matches[m]?.conditional).length));
+
+    let html = `<div class="bracket-grid bracket-${allianceCount}" data-rounds="${rounds.length}">`;
+
+    // Render round labels
+    html += '<div class="round-labels-row">';
+    for (const round of rounds) {
+      html += `<div class="round-label">${round.label}</div>`;
+    }
+    html += '</div>';
+
+    // Render round columns
+    html += '<div class="rounds-container">';
+
+    for (let i = 0; i < rounds.length; i++) {
+      const round = rounds[i];
+      const isFinalsRound = round.label === "Finals";
+
+      // Filter out conditional matches that aren't needed/shown
+      const visibleMatches = round.matches.filter(matchId => {
+        const match = this.bracketState.matches[matchId];
+        if (!match) return false;
+        if (!match.conditional) return true;
+        // For conditional matches, let renderMatchBox handle visibility
+        return true;
+      });
+
+      html += `<div class="round-column ${isFinalsRound ? 'finals-round' : ''}" data-round="${i + 1}">`;
+
+      for (const matchId of visibleMatches) {
+        html += `<div class="match-wrapper">${this.renderMatchBox(matchId)}</div>`;
+      }
+
+      html += '</div>';
+    }
+
+    html += '</div>';
+
+    // Add SVG for connector lines
+    html += `<svg class="bracket-connectors" id="bracket-svg-${allianceCount}"></svg>`;
+
+    html += '</div>';
+
+    // Schedule connector drawing after DOM update
+    setTimeout(() => this.drawConnectors(allianceCount, connectors), 0);
+
+    return html;
+  },
+
+  // Draw SVG connector lines
+  drawConnectors(allianceCount, connectors) {
+    const svg = document.getElementById(`bracket-svg-${allianceCount}`);
+    if (!svg) return;
+
+    const container = svg.closest('.bracket-grid');
+    if (!container) return;
+
+    // Clear existing lines
+    svg.innerHTML = '';
+
+    // Set SVG size to match container
+    const rect = container.getBoundingClientRect();
+    svg.setAttribute('width', rect.width);
+    svg.setAttribute('height', rect.height);
+
+    for (const conn of connectors) {
+      const fromBox = container.querySelector(`[data-match="${conn.from}"]`);
+      const toBox = container.querySelector(`[data-match="${conn.to}"]`);
+
+      if (!fromBox || !toBox) continue;
+
+      // Get positions relative to container
+      const containerRect = container.getBoundingClientRect();
+      const fromRect = fromBox.getBoundingClientRect();
+      const toRect = toBox.getBoundingClientRect();
+
+      // Calculate connection points
+      // From: right edge, center of match box
+      const fromX = fromRect.right - containerRect.left;
+      const fromY = fromRect.top - containerRect.top + fromRect.height / 2;
+
+      // To: left edge, center of the specific slot (red = top third, blue = bottom third)
+      const toX = toRect.left - containerRect.left;
+      const slotOffset = conn.slot === "red" ? 0.33 : 0.67;
+      const toY = toRect.top - containerRect.top + toRect.height * slotOffset;
+
+      // Create path with right angles
+      const midX = fromX + (toX - fromX) / 2;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const d = `M ${fromX} ${fromY} H ${midX} V ${toY} H ${toX}`;
+      path.setAttribute('d', d);
+      path.setAttribute('class', `connector-line connector-${conn.slot}`);
+      path.setAttribute('fill', 'none');
+
+      svg.appendChild(path);
+
+      // Add arrow at the end
+      const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      const arrowSize = 6;
+      const arrowPoints = `${toX},${toY} ${toX - arrowSize},${toY - arrowSize / 2} ${toX - arrowSize},${toY + arrowSize / 2}`;
+      arrow.setAttribute('points', arrowPoints);
+      arrow.setAttribute('class', `connector-arrow connector-${conn.slot}`);
+
+      svg.appendChild(arrow);
+    }
+  },
+
+  // 2-Alliance Bracket (Best of 3)
+  render2AllianceBracket() {
+    return `
+      <div class="bracket-grid bracket-2">
+        <div class="round-labels-row">
+          <div class="round-label">Finals (Best of 3)</div>
+        </div>
+        <div class="rounds-container finals-only">
+          <div class="round-column finals-round">
+            <div class="match-wrapper">${this.renderMatchBox("M1")}</div>
+            <div class="match-wrapper">${this.renderMatchBox("M2")}</div>
+            <div class="match-wrapper">${this.renderMatchBox("M3")}</div>
+          </div>
         </div>
       </div>
     `;
@@ -206,343 +425,6 @@ const BracketDisplay = {
     `;
   },
 
-  // Render combined finals box for double elimination
-  renderFinalsBox(finalsMatchIds) {
-    const matches = this.bracketState?.matches || {};
-    const finalsMatches = finalsMatchIds.map(id => ({ id, ...matches[id] })).filter(m => m);
-
-    if (finalsMatches.length === 0) return "";
-
-    // Get the alliances from the first finals match (or TBD)
-    const firstMatch = finalsMatches[0];
-    const redAlliance = firstMatch.red;
-    const blueAlliance = firstMatch.blue;
-    const redDisplay = this.getAllianceDisplay(redAlliance);
-    const blueDisplay = this.getAllianceDisplay(blueAlliance);
-
-    // Count wins for each alliance
-    let redWins = 0;
-    let blueWins = 0;
-    for (const match of finalsMatches) {
-      if (match.played) {
-        if (match.winner === "red") redWins++;
-        else if (match.winner === "blue") blueWins++;
-      }
-    }
-
-    // Check if any finals match is current
-    const isAnyCurrent = finalsMatches.some(m => m.scoreMatchId === this.currentMatchId);
-    const currentClass = isAnyCurrent ? "current" : "";
-
-    // Determine series status
-    let seriesStatus = "";
-    const totalNeeded = finalsMatches.length === 3 ? 2 : 1; // Best of 3 vs single elimination style
-    if (redWins > 0 || blueWins > 0) {
-      if (finalsMatches.length === 3) {
-        seriesStatus = `Best of 3: ${redWins} - ${blueWins}`;
-      } else {
-        // For standard double elim finals
-        const matchesPlayed = finalsMatches.filter(m => m.played).length;
-        const totalFinalsMatches = finalsMatches.length;
-        seriesStatus = `Match ${matchesPlayed} of ${totalFinalsMatches}`;
-      }
-    }
-
-    return `
-      <div class="finals-box ${currentClass}">
-        <div class="match-header">FINALS</div>
-        <div class="alliance-slot red ${redWins > blueWins && this.bracketState?.champion ? 'winner' : ''}">
-          <span class="alliance-name">${redAlliance != null ? redDisplay.name : "TBD"}</span>
-          <span class="finals-wins">${redWins > 0 ? redWins : ""}</span>
-        </div>
-        <div class="alliance-slot blue ${blueWins > redWins && this.bracketState?.champion ? 'winner' : ''}">
-          <span class="alliance-name">${blueAlliance != null ? blueDisplay.name : "TBD"}</span>
-          <span class="finals-wins">${blueWins > 0 ? blueWins : ""}</span>
-        </div>
-        ${seriesStatus ? `<div class="finals-status">${seriesStatus}</div>` : ""}
-      </div>
-    `;
-  },
-
-  // 2-Alliance Bracket (Best of 3)
-  render2AllianceBracket() {
-    return `
-      <div class="round-labels">
-        <div class="round-label">Finals (Best of 3)</div>
-      </div>
-      <div class="bracket-wrapper">
-        <div class="bracket-row" style="justify-content: center;">
-          ${this.renderFinalsBox(["M1", "M2", "M3"])}
-        </div>
-      </div>
-    `;
-  },
-
-  // 4-Alliance Bracket - True bracket layout with connectors
-  render4AllianceBracket() {
-    return `
-      <div class="bracket-grid bracket-4">
-        <!-- Upper Bracket Section -->
-        <div class="bracket-section-header upper">Upper Bracket</div>
-
-        <div class="bracket-labels">
-          <span>Semifinals</span>
-          <span>UB Final</span>
-        </div>
-
-        <div class="upper-bracket">
-          <div class="bracket-column round-1">
-            <div class="match-slot slot-1">
-              ${this.renderMatchBox("M1")}
-              <div class="connector-right"></div>
-            </div>
-            <div class="match-slot slot-2">
-              ${this.renderMatchBox("M2")}
-              <div class="connector-right flip"></div>
-            </div>
-          </div>
-
-          <div class="bracket-column round-2">
-            <div class="match-slot slot-center">
-              ${this.renderMatchBox("M4")}
-              <div class="connector-right straight"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Finals Column -->
-        <div class="finals-column">
-          <div class="finals-label">Finals</div>
-          ${this.renderFinalsBox(["M6", "M7"])}
-        </div>
-
-        <!-- Lower Bracket Section -->
-        <div class="bracket-section-header lower">Lower Bracket</div>
-
-        <div class="bracket-labels lower">
-          <span>LB Round 1</span>
-          <span>LB Final</span>
-        </div>
-
-        <div class="lower-bracket">
-          <div class="bracket-column round-1">
-            <div class="match-slot slot-center">
-              ${this.renderMatchBox("M3")}
-              <div class="connector-right straight"></div>
-            </div>
-          </div>
-
-          <div class="bracket-column round-2">
-            <div class="match-slot slot-center">
-              ${this.renderMatchBox("M5")}
-              <div class="connector-right straight to-finals"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  },
-
-  // 6-Alliance Bracket - True bracket layout with connectors
-  render6AllianceBracket() {
-    return `
-      <div class="bracket-grid bracket-6">
-        <!-- Upper Bracket Section -->
-        <div class="bracket-section-header upper">Upper Bracket</div>
-
-        <div class="bracket-labels">
-          <span>Round 1</span>
-          <span>Round 2</span>
-          <span>UB Final</span>
-        </div>
-
-        <div class="upper-bracket">
-          <div class="bracket-column round-1">
-            <div class="match-slot slot-1">
-              ${this.renderMatchBox("M1")}
-              <div class="connector-right"></div>
-            </div>
-            <div class="match-slot slot-2">
-              ${this.renderMatchBox("M2")}
-              <div class="connector-right flip"></div>
-            </div>
-          </div>
-
-          <div class="bracket-column round-2">
-            <div class="match-slot slot-1">
-              ${this.renderMatchBox("M3")}
-              <div class="connector-right"></div>
-            </div>
-            <div class="match-slot slot-2">
-              ${this.renderMatchBox("M4")}
-              <div class="connector-right flip"></div>
-            </div>
-          </div>
-
-          <div class="bracket-column round-3">
-            <div class="match-slot slot-center">
-              ${this.renderMatchBox("M7")}
-              <div class="connector-right straight"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Finals Column -->
-        <div class="finals-column">
-          <div class="finals-label">Finals</div>
-          ${this.renderFinalsBox(["M10", "M11"])}
-        </div>
-
-        <!-- Lower Bracket Section -->
-        <div class="bracket-section-header lower">Lower Bracket</div>
-
-        <div class="bracket-labels lower">
-          <span>LB Round 1</span>
-          <span>LB Round 2</span>
-          <span>LB Final</span>
-        </div>
-
-        <div class="lower-bracket">
-          <div class="bracket-column round-1">
-            <div class="match-slot slot-1">
-              ${this.renderMatchBox("M5")}
-              <div class="connector-right"></div>
-            </div>
-            <div class="match-slot slot-2">
-              ${this.renderMatchBox("M6")}
-              <div class="connector-right flip"></div>
-            </div>
-          </div>
-
-          <div class="bracket-column round-2">
-            <div class="match-slot slot-center">
-              ${this.renderMatchBox("M8")}
-              <div class="connector-right straight"></div>
-            </div>
-          </div>
-
-          <div class="bracket-column round-3">
-            <div class="match-slot slot-center">
-              ${this.renderMatchBox("M9")}
-              <div class="connector-right straight to-finals"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  },
-
-  // 8-Alliance Bracket - True bracket layout with connectors
-  render8AllianceBracket() {
-    return `
-      <div class="bracket-grid bracket-8">
-        <!-- Upper Bracket Section -->
-        <div class="bracket-section-header upper">Upper Bracket</div>
-
-        <!-- Round labels row -->
-        <div class="bracket-labels">
-          <span>Quarterfinals</span>
-          <span>Semifinals</span>
-          <span>UB Final</span>
-        </div>
-
-        <!-- Upper Bracket Grid -->
-        <div class="upper-bracket">
-          <div class="bracket-column round-1">
-            <div class="match-slot slot-1">
-              ${this.renderMatchBox("M1")}
-              <div class="connector-right"></div>
-            </div>
-            <div class="match-slot slot-2">
-              ${this.renderMatchBox("M2")}
-              <div class="connector-right flip"></div>
-            </div>
-            <div class="match-slot slot-3">
-              ${this.renderMatchBox("M3")}
-              <div class="connector-right"></div>
-            </div>
-            <div class="match-slot slot-4">
-              ${this.renderMatchBox("M4")}
-              <div class="connector-right flip"></div>
-            </div>
-          </div>
-
-          <div class="bracket-column round-2">
-            <div class="match-slot slot-1-2">
-              ${this.renderMatchBox("M7")}
-              <div class="connector-right"></div>
-            </div>
-            <div class="match-slot slot-3-4">
-              ${this.renderMatchBox("M8")}
-              <div class="connector-right flip"></div>
-            </div>
-          </div>
-
-          <div class="bracket-column round-3">
-            <div class="match-slot slot-center">
-              ${this.renderMatchBox("M11")}
-              <div class="connector-right straight"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Finals Column -->
-        <div class="finals-column">
-          <div class="finals-label">Finals</div>
-          ${this.renderFinalsBox(["M14", "M15"])}
-        </div>
-
-        <!-- Lower Bracket Section -->
-        <div class="bracket-section-header lower">Lower Bracket</div>
-
-        <div class="bracket-labels lower">
-          <span>LB Round 1</span>
-          <span>LB Round 2</span>
-          <span>LB Round 3</span>
-          <span>LB Final</span>
-        </div>
-
-        <div class="lower-bracket">
-          <div class="bracket-column round-1">
-            <div class="match-slot slot-1-2">
-              ${this.renderMatchBox("M5")}
-              <div class="connector-right"></div>
-            </div>
-            <div class="match-slot slot-3-4">
-              ${this.renderMatchBox("M6")}
-              <div class="connector-right flip"></div>
-            </div>
-          </div>
-
-          <div class="bracket-column round-2">
-            <div class="match-slot slot-1-2">
-              ${this.renderMatchBox("M9")}
-              <div class="connector-right"></div>
-            </div>
-            <div class="match-slot slot-3-4">
-              ${this.renderMatchBox("M10")}
-              <div class="connector-right flip"></div>
-            </div>
-          </div>
-
-          <div class="bracket-column round-3">
-            <div class="match-slot slot-center">
-              ${this.renderMatchBox("M12")}
-              <div class="connector-right straight"></div>
-            </div>
-          </div>
-
-          <div class="bracket-column round-4">
-            <div class="match-slot slot-center">
-              ${this.renderMatchBox("M13")}
-              <div class="connector-right straight to-finals"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  },
-
   destroy() {
     this.unsubscribers.forEach(unsub => unsub());
   }
@@ -550,6 +432,17 @@ const BracketDisplay = {
 
 // Initialize on page load
 document.addEventListener("DOMContentLoaded", () => BracketDisplay.init());
+
+// Re-draw connectors on window resize
+window.addEventListener("resize", () => {
+  if (BracketDisplay.bracketState) {
+    const allianceCount = BracketDisplay.bracketState.allianceCount;
+    if (allianceCount && allianceCount > 2) {
+      const connectors = BracketDisplay.generateConnectors(allianceCount);
+      BracketDisplay.drawConnectors(allianceCount, connectors);
+    }
+  }
+});
 
 // Cleanup on unload
 window.addEventListener("beforeunload", () => BracketDisplay.destroy());

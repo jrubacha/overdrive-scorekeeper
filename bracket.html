@@ -17,7 +17,9 @@
       --bg-dark: #0a1628;
       --bg-gradient: linear-gradient(135deg, #0a1628 0%, #1a3a5c 100%);
       --red-alliance: #dc3545;
+      --red-alliance-bg: rgba(220, 53, 69, 0.3);
       --blue-alliance: #0d6efd;
+      --blue-alliance-bg: rgba(13, 110, 253, 0.3);
       --accent-yellow: #ffc107;
       --accent-green: #28a745;
       --text-primary: #ffffff;
@@ -38,7 +40,7 @@
 
     .bracket-container {
       padding: 20px;
-      min-width: 1200px;
+      min-width: 900px;
     }
 
     .bracket-header {
@@ -69,263 +71,101 @@
     }
 
     /* =====================
-       NEW BRACKET GRID LAYOUT
+       BRACKET GRID LAYOUT
        ===================== */
 
     .bracket-grid {
+      position: relative;
       display: flex;
       flex-direction: column;
-      gap: 20px;
-      padding: 20px 40px;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
     }
 
-    /* Section headers */
-    .bracket-section-header {
-      font-size: 1rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 3px;
-      color: var(--text-muted);
-      padding: 10px 0;
-      border-bottom: 1px solid var(--match-border);
-      margin-top: 20px;
-    }
-
-    .bracket-section-header.upper {
-      margin-top: 0;
-    }
-
-    /* Round labels */
-    .bracket-labels {
+    /* Round labels row */
+    .round-labels-row {
       display: flex;
-      gap: 60px;
-      padding-left: 20px;
-      margin-bottom: 10px;
+      justify-content: center;
+      gap: 40px;
+      margin-bottom: 20px;
     }
 
-    .bracket-labels span {
-      width: 180px;
+    .round-label {
+      width: 160px;
       text-align: center;
-      font-size: 0.85rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-secondary);
-    }
-
-    /* Upper and Lower bracket containers */
-    .upper-bracket,
-    .lower-bracket {
-      display: flex;
-      gap: 60px;
-      padding-left: 20px;
-      position: relative;
-    }
-
-    /* Bracket column containing matches */
-    .bracket-column {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-around;
-      position: relative;
-    }
-
-    /* Match slots - controls vertical positioning */
-    .match-slot {
-      position: relative;
-      display: flex;
-      align-items: center;
-    }
-
-    /* Connector lines */
-    .connector-right {
-      position: absolute;
-      right: -60px;
-      width: 60px;
-      height: 50%;
-      border: 2px solid var(--match-border);
-      border-left: none;
-    }
-
-    .connector-right:not(.flip):not(.straight) {
-      top: 50%;
-      border-bottom: none;
-      border-radius: 0 8px 0 0;
-    }
-
-    .connector-right.flip {
-      bottom: 50%;
-      border-top: none;
-      border-radius: 0 0 8px 0;
-    }
-
-    .connector-right.straight {
-      height: 0;
-      top: 50%;
-      border-top: none;
-      border-bottom: none;
-      border-radius: 0;
-    }
-
-    /* Finals column - positioned to the right */
-    .finals-column {
-      position: absolute;
-      right: 40px;
-      top: 50%;
-      transform: translateY(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .finals-label {
-      font-size: 1rem;
+      font-size: 0.9rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 2px;
       color: var(--text-secondary);
+      padding: 8px 0;
+      border-bottom: 2px solid var(--match-border);
     }
 
-    /* Specific bracket sizing */
+    /* Rounds container */
+    .rounds-container {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      align-items: stretch;
+    }
 
-    /* 4-alliance bracket */
-    .bracket-4 .upper-bracket {
+    .rounds-container.finals-only {
+      justify-content: center;
+    }
+
+    /* Round column */
+    .round-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      gap: 20px;
       min-height: 200px;
     }
 
-    .bracket-4 .lower-bracket {
-      min-height: 100px;
-    }
-
-    .bracket-4 .upper-bracket .round-1 {
-      height: 200px;
-    }
-
-    .bracket-4 .upper-bracket .round-1 .match-slot {
-      flex: 1;
-      display: flex;
-      align-items: center;
-    }
-
-    .bracket-4 .upper-bracket .round-2 {
-      height: 200px;
+    .round-column.finals-round {
       justify-content: center;
     }
 
-    .bracket-4 .lower-bracket .bracket-column {
-      height: 100px;
-      justify-content: center;
-    }
-
-    /* 6-alliance bracket */
-    .bracket-6 .upper-bracket {
-      min-height: 200px;
-    }
-
-    .bracket-6 .lower-bracket {
-      min-height: 200px;
-    }
-
-    .bracket-6 .upper-bracket .round-1,
-    .bracket-6 .upper-bracket .round-2 {
-      height: 200px;
-    }
-
-    .bracket-6 .upper-bracket .round-1 .match-slot,
-    .bracket-6 .upper-bracket .round-2 .match-slot {
-      flex: 1;
+    /* Match wrapper for positioning */
+    .match-wrapper {
       display: flex;
       align-items: center;
-    }
-
-    .bracket-6 .upper-bracket .round-3 {
-      height: 200px;
       justify-content: center;
+      min-height: 80px;
     }
 
-    .bracket-6 .lower-bracket .round-1 {
-      height: 200px;
-    }
+    /* Dynamic column heights based on bracket size */
+    .bracket-4 .rounds-container { min-height: 300px; }
+    .bracket-4 .round-column[data-round="1"] { justify-content: space-around; }
+    .bracket-4 .round-column[data-round="2"] { justify-content: space-around; }
+    .bracket-4 .round-column[data-round="3"] { justify-content: center; }
 
-    .bracket-6 .lower-bracket .round-1 .match-slot {
-      flex: 1;
-      display: flex;
-      align-items: center;
-    }
+    .bracket-6 .rounds-container { min-height: 350px; }
+    .bracket-6 .round-column[data-round="1"],
+    .bracket-6 .round-column[data-round="2"],
+    .bracket-6 .round-column[data-round="3"],
+    .bracket-6 .round-column[data-round="4"] { justify-content: space-around; }
+    .bracket-6 .round-column[data-round="5"] { justify-content: center; }
 
-    .bracket-6 .lower-bracket .round-2,
-    .bracket-6 .lower-bracket .round-3 {
-      height: 200px;
-      justify-content: center;
-    }
-
-    /* 8-alliance bracket */
-    .bracket-8 .upper-bracket {
-      min-height: 400px;
-    }
-
-    .bracket-8 .lower-bracket {
-      min-height: 200px;
-    }
-
-    .bracket-8 .upper-bracket .round-1 {
-      height: 400px;
-    }
-
-    .bracket-8 .upper-bracket .round-1 .match-slot {
-      flex: 1;
-      display: flex;
-      align-items: center;
-    }
-
-    .bracket-8 .upper-bracket .round-2 {
-      height: 400px;
-    }
-
-    .bracket-8 .upper-bracket .round-2 .match-slot {
-      flex: 1;
-      display: flex;
-      align-items: center;
-    }
-
-    .bracket-8 .upper-bracket .round-3 {
-      height: 400px;
-      justify-content: center;
-    }
-
-    .bracket-8 .lower-bracket .round-1,
-    .bracket-8 .lower-bracket .round-2 {
-      height: 200px;
-    }
-
-    .bracket-8 .lower-bracket .round-1 .match-slot,
-    .bracket-8 .lower-bracket .round-2 .match-slot {
-      flex: 1;
-      display: flex;
-      align-items: center;
-    }
-
-    .bracket-8 .lower-bracket .round-3,
-    .bracket-8 .lower-bracket .round-4 {
-      height: 200px;
-      justify-content: center;
-    }
-
-    /* Bracket container needs to be relative for finals positioning */
-    .bracket-grid {
-      position: relative;
-      padding-right: 300px; /* Space for finals column */
-    }
+    .bracket-8 .rounds-container { min-height: 500px; }
+    .bracket-8 .round-column[data-round="1"],
+    .bracket-8 .round-column[data-round="2"] { justify-content: space-around; }
+    .bracket-8 .round-column[data-round="3"],
+    .bracket-8 .round-column[data-round="4"] { justify-content: space-around; }
+    .bracket-8 .round-column[data-round="5"] { justify-content: center; }
 
     /* Match box styling */
     .match-box {
-      width: 180px;
+      width: 160px;
       background: var(--match-bg);
       border: 2px solid var(--match-border);
       border-radius: 8px;
       overflow: hidden;
       transition: all 0.3s;
+      position: relative;
+      z-index: 2;
     }
 
     .match-box.current {
@@ -334,7 +174,11 @@
     }
 
     .match-box.completed {
-      opacity: 0.8;
+      opacity: 0.85;
+    }
+
+    .match-box.conditional {
+      border-style: dashed;
     }
 
     .match-header {
@@ -342,12 +186,13 @@
       padding: 6px 10px;
       text-align: center;
       font-weight: 700;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       border-bottom: 1px solid var(--match-border);
     }
 
+    /* Alliance slot styling */
     .alliance-slot {
-      padding: 10px 12px;
+      padding: 8px 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -359,25 +204,39 @@
       border-bottom: none;
     }
 
+    /* Red slot - always red colored */
     .alliance-slot.red {
-      background: rgba(220, 53, 69, 0.3);
+      background: var(--red-alliance-bg);
       border-left: 4px solid var(--red-alliance);
     }
 
+    /* Blue slot - always blue colored */
     .alliance-slot.blue {
-      background: rgba(13, 110, 253, 0.3);
+      background: var(--blue-alliance-bg);
       border-left: 4px solid var(--blue-alliance);
     }
 
+    /* TBD slot - muted */
     .alliance-slot.tbd {
       background: rgba(255, 255, 255, 0.05);
-      border-left: 4px solid var(--text-muted);
+      border-left-color: var(--text-muted);
       color: var(--text-muted);
     }
 
+    /* From winner - keeps slot color but adds indicator */
+    .alliance-slot.from-winner {
+      /* Keep red/blue color based on slot */
+    }
+
+    /* From loser - keeps slot color but adds indicator */
+    .alliance-slot.from-loser {
+      /* Keep red/blue color based on slot */
+    }
+
+    /* Winner of match - gold highlight */
     .alliance-slot.winner {
-      background: rgba(255, 215, 0, 0.2);
-      border-left-color: var(--winner-highlight);
+      background: rgba(255, 215, 0, 0.25) !important;
+      border-left-color: var(--winner-highlight) !important;
     }
 
     .alliance-slot.winner .alliance-name {
@@ -387,48 +246,50 @@
 
     .alliance-name {
       font-weight: 600;
-      font-size: 0.95rem;
+      font-size: 0.85rem;
     }
 
     .winner-icon {
-      font-size: 1rem;
-    }
-
-    /* Finals box */
-    .finals-box {
-      width: 220px;
-      background: linear-gradient(135deg, #2a2a4a 0%, #1a1a3a 100%);
-      border: 3px solid var(--match-border);
-      border-radius: 12px;
-    }
-
-    .finals-box.current {
-      border-color: var(--accent-yellow);
-      box-shadow: 0 0 20px rgba(255, 193, 7, 0.4);
-    }
-
-    .finals-box .match-header {
-      background: rgba(100, 100, 150, 0.3);
-      font-size: 1.2rem;
-      font-weight: 700;
-      letter-spacing: 2px;
-    }
-
-    .finals-wins {
-      font-weight: 700;
-      font-size: 1.1rem;
+      font-size: 0.9rem;
       color: var(--winner-highlight);
-      min-width: 20px;
-      text-align: right;
     }
 
-    .finals-status {
-      text-align: center;
-      padding: 6px 10px;
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-      background: rgba(0, 0, 0, 0.2);
-      border-top: 1px solid var(--match-border);
+    /* SVG Connector Lines */
+    .bracket-connectors {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .connector-line {
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .connector-line.connector-red {
+      stroke: var(--red-alliance);
+      opacity: 0.6;
+    }
+
+    .connector-line.connector-blue {
+      stroke: var(--blue-alliance);
+      opacity: 0.6;
+    }
+
+    .connector-arrow {
+      opacity: 0.8;
+    }
+
+    .connector-arrow.connector-red {
+      fill: var(--red-alliance);
+    }
+
+    .connector-arrow.connector-blue {
+      fill: var(--blue-alliance);
     }
 
     /* Champion display */
@@ -439,6 +300,9 @@
       border-radius: 16px;
       border: 2px solid var(--winner-highlight);
       margin-top: 30px;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
     .champion-trophy {
@@ -456,44 +320,6 @@
     .champion-teams {
       font-size: 1.2rem;
       color: var(--text-primary);
-    }
-
-    /* Legacy styles for 2-alliance bracket */
-    .round-labels {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 20px;
-      padding: 0 50px;
-    }
-
-    .round-label {
-      font-size: 1.1rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      color: var(--text-secondary);
-      text-align: center;
-    }
-
-    .bracket-wrapper {
-      display: flex;
-      flex-direction: column;
-      gap: 40px;
-    }
-
-    .bracket-row {
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      min-height: 120px;
-      padding: 0 50px;
-    }
-
-    /* Connector lines - simplified for now */
-    .bracket-divider {
-      height: 2px;
-      background: var(--match-border);
-      margin: 10px 0;
     }
 
     /* No bracket message */
@@ -525,6 +351,7 @@
       cursor: pointer;
       font-size: 0.9rem;
       transition: all 0.2s;
+      z-index: 100;
     }
 
     .fullscreen-btn:hover {
@@ -543,6 +370,7 @@
       background: rgba(255, 255, 255, 0.1);
       border-radius: 8px;
       transition: all 0.2s;
+      z-index: 100;
     }
 
     .back-link:hover {
@@ -550,25 +378,17 @@
       color: var(--text-primary);
     }
 
-    /* SVG connector lines */
-    .bracket-svg {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 0;
+    /* 2-alliance best of 3 specific styles */
+    .bracket-2 .rounds-container {
+      min-height: auto;
     }
 
-    .bracket-svg line {
-      stroke: var(--match-border);
-      stroke-width: 2;
+    .bracket-2 .round-column {
+      gap: 15px;
     }
 
-    .match-box {
-      position: relative;
-      z-index: 1;
+    .bracket-2 .match-wrapper {
+      min-height: auto;
     }
   </style>
 </head>
