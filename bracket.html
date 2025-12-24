@@ -68,62 +68,254 @@
       background: var(--red-alliance);
     }
 
-    /* Round labels */
-    .round-labels {
+    /* =====================
+       NEW BRACKET GRID LAYOUT
+       ===================== */
+
+    .bracket-grid {
       display: flex;
-      justify-content: space-around;
-      margin-bottom: 20px;
-      padding: 0 50px;
+      flex-direction: column;
+      gap: 20px;
+      padding: 20px 40px;
     }
 
-    .round-label {
-      font-size: 1.1rem;
+    /* Section headers */
+    .bracket-section-header {
+      font-size: 1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      padding: 10px 0;
+      border-bottom: 1px solid var(--match-border);
+      margin-top: 20px;
+    }
+
+    .bracket-section-header.upper {
+      margin-top: 0;
+    }
+
+    /* Round labels */
+    .bracket-labels {
+      display: flex;
+      gap: 60px;
+      padding-left: 20px;
+      margin-bottom: 10px;
+    }
+
+    .bracket-labels span {
+      width: 180px;
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+    }
+
+    /* Upper and Lower bracket containers */
+    .upper-bracket,
+    .lower-bracket {
+      display: flex;
+      gap: 60px;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    /* Bracket column containing matches */
+    .bracket-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      position: relative;
+    }
+
+    /* Match slots - controls vertical positioning */
+    .match-slot {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Connector lines */
+    .connector-right {
+      position: absolute;
+      right: -60px;
+      width: 60px;
+      height: 50%;
+      border: 2px solid var(--match-border);
+      border-left: none;
+    }
+
+    .connector-right:not(.flip):not(.straight) {
+      top: 50%;
+      border-bottom: none;
+      border-radius: 0 8px 0 0;
+    }
+
+    .connector-right.flip {
+      bottom: 50%;
+      border-top: none;
+      border-radius: 0 0 8px 0;
+    }
+
+    .connector-right.straight {
+      height: 0;
+      top: 50%;
+      border-top: none;
+      border-bottom: none;
+      border-radius: 0;
+    }
+
+    /* Finals column - positioned to the right */
+    .finals-column {
+      position: absolute;
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .finals-label {
+      font-size: 1rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 2px;
       color: var(--text-secondary);
+    }
+
+    /* Specific bracket sizing */
+
+    /* 4-alliance bracket */
+    .bracket-4 .upper-bracket {
+      min-height: 200px;
+    }
+
+    .bracket-4 .lower-bracket {
+      min-height: 100px;
+    }
+
+    .bracket-4 .upper-bracket .round-1 {
+      height: 200px;
+    }
+
+    .bracket-4 .upper-bracket .round-1 .match-slot {
       flex: 1;
-      text-align: center;
-    }
-
-    /* Bracket layout */
-    .bracket-wrapper {
       display: flex;
-      flex-direction: column;
-      gap: 40px;
+      align-items: center;
     }
 
-    .bracket-section {
+    .bracket-4 .upper-bracket .round-2 {
+      height: 200px;
+      justify-content: center;
+    }
+
+    .bracket-4 .lower-bracket .bracket-column {
+      height: 100px;
+      justify-content: center;
+    }
+
+    /* 6-alliance bracket */
+    .bracket-6 .upper-bracket {
+      min-height: 200px;
+    }
+
+    .bracket-6 .lower-bracket {
+      min-height: 200px;
+    }
+
+    .bracket-6 .upper-bracket .round-1,
+    .bracket-6 .upper-bracket .round-2 {
+      height: 200px;
+    }
+
+    .bracket-6 .upper-bracket .round-1 .match-slot,
+    .bracket-6 .upper-bracket .round-2 .match-slot {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .bracket-6 .upper-bracket .round-3 {
+      height: 200px;
+      justify-content: center;
+    }
+
+    .bracket-6 .lower-bracket .round-1 {
+      height: 200px;
+    }
+
+    .bracket-6 .lower-bracket .round-1 .match-slot {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .bracket-6 .lower-bracket .round-2,
+    .bracket-6 .lower-bracket .round-3 {
+      height: 200px;
+      justify-content: center;
+    }
+
+    /* 8-alliance bracket */
+    .bracket-8 .upper-bracket {
+      min-height: 400px;
+    }
+
+    .bracket-8 .lower-bracket {
+      min-height: 200px;
+    }
+
+    .bracket-8 .upper-bracket .round-1 {
+      height: 400px;
+    }
+
+    .bracket-8 .upper-bracket .round-1 .match-slot {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .bracket-8 .upper-bracket .round-2 {
+      height: 400px;
+    }
+
+    .bracket-8 .upper-bracket .round-2 .match-slot {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .bracket-8 .upper-bracket .round-3 {
+      height: 400px;
+      justify-content: center;
+    }
+
+    .bracket-8 .lower-bracket .round-1,
+    .bracket-8 .lower-bracket .round-2 {
+      height: 200px;
+    }
+
+    .bracket-8 .lower-bracket .round-1 .match-slot,
+    .bracket-8 .lower-bracket .round-2 .match-slot {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .bracket-8 .lower-bracket .round-3,
+    .bracket-8 .lower-bracket .round-4 {
+      height: 200px;
+      justify-content: center;
+    }
+
+    /* Bracket container needs to be relative for finals positioning */
+    .bracket-grid {
       position: relative;
-    }
-
-    .bracket-section-label {
-      position: absolute;
-      left: 10px;
-      top: 50%;
-      transform: translateY(-50%) rotate(-90deg);
-      font-size: 0.9rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      color: var(--text-muted);
-      white-space: nowrap;
-    }
-
-    .bracket-row {
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      min-height: 120px;
-      padding: 0 50px;
-    }
-
-    .round-column {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
+      padding-right: 300px; /* Space for finals column */
     }
 
     /* Match box styling */
@@ -264,6 +456,37 @@
     .champion-teams {
       font-size: 1.2rem;
       color: var(--text-primary);
+    }
+
+    /* Legacy styles for 2-alliance bracket */
+    .round-labels {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+      padding: 0 50px;
+    }
+
+    .round-label {
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    .bracket-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+
+    .bracket-row {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      min-height: 120px;
+      padding: 0 50px;
     }
 
     /* Connector lines - simplified for now */

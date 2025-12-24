@@ -278,170 +278,265 @@ const BracketDisplay = {
     `;
   },
 
-  // 4-Alliance Bracket
+  // 4-Alliance Bracket - True bracket layout with connectors
   render4AllianceBracket() {
     return `
-      <div class="round-labels">
-        <div class="round-label">Round 1</div>
-        <div class="round-label">Round 2</div>
-        <div class="round-label">Round 3</div>
-        <div class="round-label">Finals</div>
-      </div>
-      <div class="bracket-wrapper">
-        <!-- Upper Bracket -->
-        <div class="bracket-section">
-          <span class="bracket-section-label">Upper Bracket</span>
-          <div class="bracket-row">
-            <div class="round-column">
+      <div class="bracket-grid bracket-4">
+        <!-- Upper Bracket Section -->
+        <div class="bracket-section-header upper">Upper Bracket</div>
+
+        <div class="bracket-labels">
+          <span>Semifinals</span>
+          <span>UB Final</span>
+        </div>
+
+        <div class="upper-bracket">
+          <div class="bracket-column round-1">
+            <div class="match-slot slot-1">
               ${this.renderMatchBox("M1")}
+              <div class="connector-right"></div>
+            </div>
+            <div class="match-slot slot-2">
               ${this.renderMatchBox("M2")}
+              <div class="connector-right flip"></div>
             </div>
-            <div class="round-column">
+          </div>
+
+          <div class="bracket-column round-2">
+            <div class="match-slot slot-center">
               ${this.renderMatchBox("M4")}
-            </div>
-            <div class="round-column"></div>
-            <div class="round-column">
-              ${this.renderFinalsBox(["M6", "M7"])}
+              <div class="connector-right straight"></div>
             </div>
           </div>
         </div>
 
-        <div class="bracket-divider"></div>
+        <!-- Finals Column -->
+        <div class="finals-column">
+          <div class="finals-label">Finals</div>
+          ${this.renderFinalsBox(["M6", "M7"])}
+        </div>
 
-        <!-- Lower Bracket -->
-        <div class="bracket-section">
-          <span class="bracket-section-label">Lower Bracket</span>
-          <div class="bracket-row">
-            <div class="round-column"></div>
-            <div class="round-column">
+        <!-- Lower Bracket Section -->
+        <div class="bracket-section-header lower">Lower Bracket</div>
+
+        <div class="bracket-labels lower">
+          <span>LB Round 1</span>
+          <span>LB Final</span>
+        </div>
+
+        <div class="lower-bracket">
+          <div class="bracket-column round-1">
+            <div class="match-slot slot-center">
               ${this.renderMatchBox("M3")}
+              <div class="connector-right straight"></div>
             </div>
-            <div class="round-column">
+          </div>
+
+          <div class="bracket-column round-2">
+            <div class="match-slot slot-center">
               ${this.renderMatchBox("M5")}
+              <div class="connector-right straight to-finals"></div>
             </div>
-            <div class="round-column"></div>
           </div>
         </div>
       </div>
     `;
   },
 
-  // 6-Alliance Bracket
+  // 6-Alliance Bracket - True bracket layout with connectors
   render6AllianceBracket() {
     return `
-      <div class="round-labels">
-        <div class="round-label">Round 1</div>
-        <div class="round-label">Round 2</div>
-        <div class="round-label">Round 3</div>
-        <div class="round-label">Round 4</div>
-        <div class="round-label">Finals</div>
-      </div>
-      <div class="bracket-wrapper">
-        <!-- Upper Bracket -->
-        <div class="bracket-section">
-          <span class="bracket-section-label">Upper Bracket</span>
-          <div class="bracket-row">
-            <div class="round-column">
+      <div class="bracket-grid bracket-6">
+        <!-- Upper Bracket Section -->
+        <div class="bracket-section-header upper">Upper Bracket</div>
+
+        <div class="bracket-labels">
+          <span>Round 1</span>
+          <span>Round 2</span>
+          <span>UB Final</span>
+        </div>
+
+        <div class="upper-bracket">
+          <div class="bracket-column round-1">
+            <div class="match-slot slot-1">
               ${this.renderMatchBox("M1")}
+              <div class="connector-right"></div>
+            </div>
+            <div class="match-slot slot-2">
               ${this.renderMatchBox("M2")}
+              <div class="connector-right flip"></div>
             </div>
-            <div class="round-column">
+          </div>
+
+          <div class="bracket-column round-2">
+            <div class="match-slot slot-1">
               ${this.renderMatchBox("M3")}
+              <div class="connector-right"></div>
+            </div>
+            <div class="match-slot slot-2">
               ${this.renderMatchBox("M4")}
+              <div class="connector-right flip"></div>
             </div>
-            <div class="round-column">
+          </div>
+
+          <div class="bracket-column round-3">
+            <div class="match-slot slot-center">
               ${this.renderMatchBox("M7")}
-            </div>
-            <div class="round-column"></div>
-            <div class="round-column">
-              ${this.renderFinalsBox(["M10", "M11"])}
+              <div class="connector-right straight"></div>
             </div>
           </div>
         </div>
 
-        <div class="bracket-divider"></div>
+        <!-- Finals Column -->
+        <div class="finals-column">
+          <div class="finals-label">Finals</div>
+          ${this.renderFinalsBox(["M10", "M11"])}
+        </div>
 
-        <!-- Lower Bracket -->
-        <div class="bracket-section">
-          <span class="bracket-section-label">Lower Bracket</span>
-          <div class="bracket-row">
-            <div class="round-column"></div>
-            <div class="round-column">
+        <!-- Lower Bracket Section -->
+        <div class="bracket-section-header lower">Lower Bracket</div>
+
+        <div class="bracket-labels lower">
+          <span>LB Round 1</span>
+          <span>LB Round 2</span>
+          <span>LB Final</span>
+        </div>
+
+        <div class="lower-bracket">
+          <div class="bracket-column round-1">
+            <div class="match-slot slot-1">
               ${this.renderMatchBox("M5")}
+              <div class="connector-right"></div>
+            </div>
+            <div class="match-slot slot-2">
               ${this.renderMatchBox("M6")}
+              <div class="connector-right flip"></div>
             </div>
-            <div class="round-column">
+          </div>
+
+          <div class="bracket-column round-2">
+            <div class="match-slot slot-center">
               ${this.renderMatchBox("M8")}
+              <div class="connector-right straight"></div>
             </div>
-            <div class="round-column">
+          </div>
+
+          <div class="bracket-column round-3">
+            <div class="match-slot slot-center">
               ${this.renderMatchBox("M9")}
+              <div class="connector-right straight to-finals"></div>
             </div>
-            <div class="round-column"></div>
           </div>
         </div>
       </div>
     `;
   },
 
-  // 8-Alliance Bracket
+  // 8-Alliance Bracket - True bracket layout with connectors
   render8AllianceBracket() {
     return `
-      <div class="round-labels">
-        <div class="round-label">Round 1</div>
-        <div class="round-label">Round 2</div>
-        <div class="round-label">Round 3</div>
-        <div class="round-label">Round 4</div>
-        <div class="round-label">Round 5</div>
-        <div class="round-label">Finals</div>
-      </div>
-      <div class="bracket-wrapper">
-        <!-- Upper Bracket -->
-        <div class="bracket-section">
-          <span class="bracket-section-label">Upper Bracket</span>
-          <div class="bracket-row">
-            <div class="round-column">
+      <div class="bracket-grid bracket-8">
+        <!-- Upper Bracket Section -->
+        <div class="bracket-section-header upper">Upper Bracket</div>
+
+        <!-- Round labels row -->
+        <div class="bracket-labels">
+          <span>Quarterfinals</span>
+          <span>Semifinals</span>
+          <span>UB Final</span>
+        </div>
+
+        <!-- Upper Bracket Grid -->
+        <div class="upper-bracket">
+          <div class="bracket-column round-1">
+            <div class="match-slot slot-1">
               ${this.renderMatchBox("M1")}
+              <div class="connector-right"></div>
+            </div>
+            <div class="match-slot slot-2">
               ${this.renderMatchBox("M2")}
+              <div class="connector-right flip"></div>
+            </div>
+            <div class="match-slot slot-3">
               ${this.renderMatchBox("M3")}
+              <div class="connector-right"></div>
+            </div>
+            <div class="match-slot slot-4">
               ${this.renderMatchBox("M4")}
+              <div class="connector-right flip"></div>
             </div>
-            <div class="round-column">
+          </div>
+
+          <div class="bracket-column round-2">
+            <div class="match-slot slot-1-2">
               ${this.renderMatchBox("M7")}
+              <div class="connector-right"></div>
+            </div>
+            <div class="match-slot slot-3-4">
               ${this.renderMatchBox("M8")}
+              <div class="connector-right flip"></div>
             </div>
-            <div class="round-column"></div>
-            <div class="round-column">
+          </div>
+
+          <div class="bracket-column round-3">
+            <div class="match-slot slot-center">
               ${this.renderMatchBox("M11")}
-            </div>
-            <div class="round-column"></div>
-            <div class="round-column">
-              ${this.renderFinalsBox(["M14", "M15"])}
+              <div class="connector-right straight"></div>
             </div>
           </div>
         </div>
 
-        <div class="bracket-divider"></div>
+        <!-- Finals Column -->
+        <div class="finals-column">
+          <div class="finals-label">Finals</div>
+          ${this.renderFinalsBox(["M14", "M15"])}
+        </div>
 
-        <!-- Lower Bracket -->
-        <div class="bracket-section">
-          <span class="bracket-section-label">Lower Bracket</span>
-          <div class="bracket-row">
-            <div class="round-column"></div>
-            <div class="round-column">
+        <!-- Lower Bracket Section -->
+        <div class="bracket-section-header lower">Lower Bracket</div>
+
+        <div class="bracket-labels lower">
+          <span>LB Round 1</span>
+          <span>LB Round 2</span>
+          <span>LB Round 3</span>
+          <span>LB Final</span>
+        </div>
+
+        <div class="lower-bracket">
+          <div class="bracket-column round-1">
+            <div class="match-slot slot-1-2">
               ${this.renderMatchBox("M5")}
+              <div class="connector-right"></div>
+            </div>
+            <div class="match-slot slot-3-4">
               ${this.renderMatchBox("M6")}
+              <div class="connector-right flip"></div>
             </div>
-            <div class="round-column">
+          </div>
+
+          <div class="bracket-column round-2">
+            <div class="match-slot slot-1-2">
               ${this.renderMatchBox("M9")}
+              <div class="connector-right"></div>
+            </div>
+            <div class="match-slot slot-3-4">
               ${this.renderMatchBox("M10")}
+              <div class="connector-right flip"></div>
             </div>
-            <div class="round-column">
+          </div>
+
+          <div class="bracket-column round-3">
+            <div class="match-slot slot-center">
               ${this.renderMatchBox("M12")}
+              <div class="connector-right straight"></div>
             </div>
-            <div class="round-column">
+          </div>
+
+          <div class="bracket-column round-4">
+            <div class="match-slot slot-center">
               ${this.renderMatchBox("M13")}
+              <div class="connector-right straight to-finals"></div>
             </div>
-            <div class="round-column"></div>
           </div>
         </div>
       </div>
