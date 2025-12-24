@@ -28,18 +28,20 @@ const BracketDisplay = {
       finals: ["M6", "M7"]
     },
     6: {
-      rounds: ["Round 1", "Round 2", "Round 3", "Round 4", "Finals"],
+      rounds: ["Round 1", "Round 2", "Round 3", "Round 4", "Round 5", "Finals"],
       upper: [
         ["M1", "M2"],  // Round 1
         ["M3", "M4"],  // Round 2
-        ["M7"],        // Round 3
-        []             // Round 4 (empty)
+        [],            // Round 3 (empty)
+        ["M7"],        // Round 4
+        []             // Round 5 (empty)
       ],
       lower: [
         [],            // Round 1 (empty)
         ["M6", "M5"],  // Round 2 - M6 on top, M5 below
         ["M8"],        // Round 3
-        ["M9"]         // Round 4
+        ["M9"],        // Round 4
+        []             // Round 5 (empty)
       ],
       finals: ["M10", "M11"]
     },
@@ -404,9 +406,12 @@ const BracketDisplay = {
       const fromX = fromRect.right - containerRect.left;
       const fromY = fromRect.top - containerRect.top + fromRect.height / 2;
 
-      // To: left edge, center of match box (not specific slot)
+      // To: left edge, pointing to the specific slot (red = upper slot, blue = lower slot)
+      // The match box has a header (~25px) then two slots
+      // Red slot is roughly at 40% from top, blue slot at 75% from top
       const toX = toRect.left - containerRect.left;
-      const toY = toRect.top - containerRect.top + toRect.height / 2;
+      const slotOffset = conn.slot === "red" ? 0.40 : 0.75;
+      const toY = toRect.top - containerRect.top + toRect.height * slotOffset;
 
       // Create path with right angles
       const midX = fromX + (toX - fromX) / 2;
@@ -419,7 +424,7 @@ const BracketDisplay = {
 
       svg.appendChild(path);
 
-      // Add arrow at the end pointing to center
+      // Add arrow at the end pointing into the slot
       const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
       const arrowSize = 6;
       const arrowPoints = `${toX},${toY} ${toX - arrowSize},${toY - arrowSize / 2} ${toX - arrowSize},${toY + arrowSize / 2}`;
