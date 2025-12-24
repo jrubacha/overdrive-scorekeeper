@@ -86,46 +86,72 @@
     /* Round labels row */
     .round-labels-row {
       display: flex;
-      justify-content: center;
-      gap: 40px;
-      margin-bottom: 20px;
+      justify-content: flex-start;
+      gap: 30px;
+      margin-bottom: 10px;
+      margin-left: 100px; /* Account for section label */
     }
 
     .round-label {
       width: 160px;
       text-align: center;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 2px;
+      letter-spacing: 1px;
       color: var(--text-secondary);
-      padding: 8px 0;
+      padding: 6px 0;
       border-bottom: 2px solid var(--match-border);
     }
 
-    /* Rounds container */
-    .rounds-container {
+    /* Bracket sections (Upper/Lower) */
+    .bracket-section {
       display: flex;
-      justify-content: center;
-      gap: 40px;
       align-items: stretch;
+      margin-bottom: 20px;
     }
 
-    .rounds-container.finals-only {
+    .section-label {
+      width: 90px;
+      display: flex;
+      align-items: center;
       justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transform: rotate(180deg);
+      padding: 10px 5px;
+      border-right: 2px solid var(--match-border);
+      margin-right: 10px;
+    }
+
+    .section-rounds {
+      display: flex;
+      gap: 30px;
+      align-items: stretch;
+      flex: 1;
     }
 
     /* Round column */
     .round-column {
+      width: 160px;
       display: flex;
       flex-direction: column;
       justify-content: space-around;
-      gap: 20px;
-      min-height: 200px;
+      gap: 15px;
+      min-height: 100px;
     }
 
-    .round-column.finals-round {
+    .round-column.finals-column {
       justify-content: center;
+    }
+
+    .round-column.empty {
+      visibility: hidden;
     }
 
     /* Match wrapper for positioning */
@@ -133,28 +159,21 @@
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+
+    .match-wrapper.empty {
       min-height: 80px;
     }
 
-    /* Dynamic column heights based on bracket size */
-    .bracket-4 .rounds-container { min-height: 300px; }
-    .bracket-4 .round-column[data-round="1"] { justify-content: space-around; }
-    .bracket-4 .round-column[data-round="2"] { justify-content: space-around; }
-    .bracket-4 .round-column[data-round="3"] { justify-content: center; }
+    /* Dynamic heights based on bracket size */
+    .bracket-4 .upper-bracket .section-rounds { min-height: 200px; }
+    .bracket-4 .lower-bracket .section-rounds { min-height: 150px; }
 
-    .bracket-6 .rounds-container { min-height: 350px; }
-    .bracket-6 .round-column[data-round="1"],
-    .bracket-6 .round-column[data-round="2"],
-    .bracket-6 .round-column[data-round="3"],
-    .bracket-6 .round-column[data-round="4"] { justify-content: space-around; }
-    .bracket-6 .round-column[data-round="5"] { justify-content: center; }
+    .bracket-6 .upper-bracket .section-rounds { min-height: 200px; }
+    .bracket-6 .lower-bracket .section-rounds { min-height: 200px; }
 
-    .bracket-8 .rounds-container { min-height: 500px; }
-    .bracket-8 .round-column[data-round="1"],
-    .bracket-8 .round-column[data-round="2"] { justify-content: space-around; }
-    .bracket-8 .round-column[data-round="3"],
-    .bracket-8 .round-column[data-round="4"] { justify-content: space-around; }
-    .bracket-8 .round-column[data-round="5"] { justify-content: center; }
+    .bracket-8 .upper-bracket .section-rounds { min-height: 350px; }
+    .bracket-8 .lower-bracket .section-rounds { min-height: 200px; }
 
     /* Match box styling */
     .match-box {

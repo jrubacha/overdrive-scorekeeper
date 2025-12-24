@@ -10,35 +10,55 @@ const BracketDisplay = {
   unsubscribers: [],
 
   // Define round layouts for each bracket size
-  // Each array represents a column (round), containing match IDs
-  roundLayouts: {
+  // Upper and Lower brackets with matches per round
+  bracketLayouts: {
     4: {
-      rounds: [
-        { label: "Round 1", matches: ["M1", "M2"] },
-        { label: "Round 2", matches: ["M3", "M4"] },
-        { label: "Round 3", matches: ["M5"] },
-        { label: "Finals", matches: ["M6", "M7"] }
-      ]
+      rounds: ["Round 1", "Round 2", "Round 3", "Finals"],
+      upper: [
+        ["M1", "M2"],  // Round 1
+        ["M4"],        // Round 2
+        []             // Round 3 (empty)
+      ],
+      lower: [
+        [],            // Round 1 (empty)
+        ["M3"],        // Round 2
+        ["M5"]         // Round 3
+      ],
+      finals: ["M6", "M7"]
     },
     6: {
-      rounds: [
-        { label: "Round 1", matches: ["M1", "M2"] },
-        { label: "Round 2", matches: ["M3", "M4"] },
-        { label: "Round 3", matches: ["M5", "M6"] },
-        { label: "Round 4", matches: ["M7", "M8"] },
-        { label: "Round 5", matches: ["M9"] },
-        { label: "Finals", matches: ["M10", "M11"] }
-      ]
+      rounds: ["Round 1", "Round 2", "Round 3", "Round 4", "Finals"],
+      upper: [
+        ["M1", "M2"],  // Round 1
+        ["M3", "M4"],  // Round 2
+        ["M7"],        // Round 3
+        []             // Round 4 (empty)
+      ],
+      lower: [
+        [],            // Round 1 (empty)
+        ["M5", "M6"],  // Round 2
+        ["M8"],        // Round 3
+        ["M9"]         // Round 4
+      ],
+      finals: ["M10", "M11"]
     },
     8: {
-      rounds: [
-        { label: "Round 1", matches: ["M1", "M2", "M3", "M4"] },
-        { label: "Round 2", matches: ["M5", "M6", "M7", "M8"] },
-        { label: "Round 3", matches: ["M9", "M10"] },
-        { label: "Round 4", matches: ["M11", "M12"] },
-        { label: "Round 5", matches: ["M13"] },
-        { label: "Finals", matches: ["M14", "M15"] }
-      ]
+      rounds: ["Round 1", "Round 2", "Round 3", "Round 4", "Round 5", "Finals"],
+      upper: [
+        ["M1", "M2", "M3", "M4"],  // Round 1
+        ["M7", "M8"],              // Round 2
+        [],                        // Round 3 (empty)
+        ["M11"],                   // Round 4
+        []                         // Round 5 (empty)
+      ],
+      lower: [
+        [],                        // Round 1 (empty)
+        ["M5", "M6"],              // Round 2
+        ["M9", "M10"],             // Round 3
+        ["M12"],                   // Round 4
+        ["M13"]                    // Round 5
+      ],
+      finals: ["M14", "M15"]
     }
   },
 
@@ -125,7 +145,7 @@ const BracketDisplay = {
     // Render appropriate bracket layout
     if (allianceCount === 2) {
       container.innerHTML = this.render2AllianceBracket();
-    } else if (this.roundLayouts[allianceCount]) {
+    } else if (this.bracketLayouts[allianceCount]) {
       container.innerHTML = this.renderBracket(allianceCount);
     } else {
       container.innerHTML = `
@@ -248,14 +268,15 @@ const BracketDisplay = {
     `;
   },
 
-  // Generate connector lines based on winnerTo paths
+  // Generate connector lines based on winnerTo paths only (no loser paths)
   generateConnectors(allianceCount) {
     const template = Bracket.templates[allianceCount];
-    if (!template) return "";
+    if (!template) return [];
 
     const connectors = [];
 
     for (const [matchId, matchDef] of Object.entries(template.matches)) {
+      // Only show winner paths, not loser paths
       if (matchDef.winnerTo) {
         connectors.push({
           from: matchId,
@@ -268,52 +289,71 @@ const BracketDisplay = {
     return connectors;
   },
 
-  // Render the bracket using round-based layout
+  // Render a round column with matches
+  renderRoundColumn(matches, roundIndex) {
+    let html = `<div class="round-column" data-round="${roundIndex + 1}">`;
+
+    for (const matchId of matches) {
+      html += `<div class="match-wrapper">${this.renderMatchBox(matchId)}</div>`;
+    }
+
+    // Add empty placeholder if no matches in this round
+    if (matches.length === 0) {
+      html += '<div class="match-wrapper empty"></div>';
+    }
+
+    html += '</div>';
+    return html;
+  },
+
+  // Render the bracket using upper/lower bracket layout
   renderBracket(allianceCount) {
-    const layout = this.roundLayouts[allianceCount];
+    const layout = this.bracketLayouts[allianceCount];
     if (!layout) return "";
 
-    const rounds = layout.rounds;
     const connectors = this.generateConnectors(allianceCount);
+    const numRounds = layout.rounds.length - 1; // Exclude "Finals" from count
 
-    // Calculate max matches in any round for sizing
-    const maxMatches = Math.max(...rounds.map(r => r.matches.filter(m => !this.bracketState.matches[m]?.conditional).length));
+    let html = `<div class="bracket-grid bracket-${allianceCount}" data-rounds="${layout.rounds.length}">`;
 
-    let html = `<div class="bracket-grid bracket-${allianceCount}" data-rounds="${rounds.length}">`;
-
-    // Render round labels
+    // Render round labels row
     html += '<div class="round-labels-row">';
-    for (const round of rounds) {
-      html += `<div class="round-label">${round.label}</div>`;
+    for (const roundLabel of layout.rounds) {
+      html += `<div class="round-label">${roundLabel}</div>`;
     }
     html += '</div>';
 
-    // Render round columns
-    html += '<div class="rounds-container">';
+    // Upper Bracket Section
+    html += '<div class="bracket-section upper-bracket">';
+    html += '<div class="section-label">Upper Bracket</div>';
+    html += '<div class="section-rounds">';
 
-    for (let i = 0; i < rounds.length; i++) {
-      const round = rounds[i];
-      const isFinalsRound = round.label === "Finals";
-
-      // Filter out conditional matches that aren't needed/shown
-      const visibleMatches = round.matches.filter(matchId => {
-        const match = this.bracketState.matches[matchId];
-        if (!match) return false;
-        if (!match.conditional) return true;
-        // For conditional matches, let renderMatchBox handle visibility
-        return true;
-      });
-
-      html += `<div class="round-column ${isFinalsRound ? 'finals-round' : ''}" data-round="${i + 1}">`;
-
-      for (const matchId of visibleMatches) {
-        html += `<div class="match-wrapper">${this.renderMatchBox(matchId)}</div>`;
-      }
-
-      html += '</div>';
+    for (let i = 0; i < layout.upper.length; i++) {
+      html += this.renderRoundColumn(layout.upper[i], i);
     }
 
+    // Finals column (shared between upper and lower visually)
+    html += '<div class="round-column finals-column">';
+    for (const matchId of layout.finals) {
+      html += `<div class="match-wrapper">${this.renderMatchBox(matchId)}</div>`;
+    }
     html += '</div>';
+
+    html += '</div></div>';
+
+    // Lower Bracket Section
+    html += '<div class="bracket-section lower-bracket">';
+    html += '<div class="section-label">Lower Bracket</div>';
+    html += '<div class="section-rounds">';
+
+    for (let i = 0; i < layout.lower.length; i++) {
+      html += this.renderRoundColumn(layout.lower[i], i);
+    }
+
+    // Empty finals placeholder to align columns
+    html += '<div class="round-column finals-column empty"></div>';
+
+    html += '</div></div>';
 
     // Add SVG for connector lines
     html += `<svg class="bracket-connectors" id="bracket-svg-${allianceCount}"></svg>`;
