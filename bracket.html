@@ -104,11 +104,22 @@
       border-bottom: 2px solid var(--match-border);
     }
 
+    /* Main bracket layout */
+    .bracket-main {
+      display: flex;
+      align-items: stretch;
+    }
+
+    .bracket-halves {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
     /* Bracket sections (Upper/Lower) */
     .bracket-section {
       display: flex;
       align-items: stretch;
-      margin-bottom: 20px;
     }
 
     .section-label {
@@ -136,6 +147,24 @@
       flex: 1;
     }
 
+    /* Horizontal divider between brackets */
+    .bracket-divider {
+      height: 2px;
+      background: rgba(255, 255, 255, 0.3);
+      margin: 15px 0;
+      margin-left: 100px; /* Align with rounds, past section label */
+    }
+
+    /* Finals section - straddles the divider */
+    .finals-section {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      padding-left: 30px;
+    }
+
     /* Round column */
     .round-column {
       width: 160px;
@@ -144,10 +173,6 @@
       justify-content: space-around;
       gap: 15px;
       min-height: 100px;
-    }
-
-    .round-column.finals-column {
-      justify-content: center;
     }
 
     .round-column.empty {
@@ -166,14 +191,14 @@
     }
 
     /* Dynamic heights based on bracket size */
-    .bracket-4 .upper-bracket .section-rounds { min-height: 200px; }
-    .bracket-4 .lower-bracket .section-rounds { min-height: 150px; }
+    .bracket-4 .upper-bracket .section-rounds { min-height: 180px; }
+    .bracket-4 .lower-bracket .section-rounds { min-height: 140px; }
 
-    .bracket-6 .upper-bracket .section-rounds { min-height: 200px; }
-    .bracket-6 .lower-bracket .section-rounds { min-height: 200px; }
+    .bracket-6 .upper-bracket .section-rounds { min-height: 180px; }
+    .bracket-6 .lower-bracket .section-rounds { min-height: 180px; }
 
-    .bracket-8 .upper-bracket .section-rounds { min-height: 350px; }
-    .bracket-8 .lower-bracket .section-rounds { min-height: 200px; }
+    .bracket-8 .upper-bracket .section-rounds { min-height: 320px; }
+    .bracket-8 .lower-bracket .section-rounds { min-height: 180px; }
 
     /* Match box styling */
     .match-box {
@@ -285,30 +310,13 @@
     }
 
     .connector-line {
+      stroke: rgba(255, 255, 255, 0.5);
       stroke-width: 2;
       fill: none;
     }
 
-    .connector-line.connector-red {
-      stroke: var(--red-alliance);
-      opacity: 0.6;
-    }
-
-    .connector-line.connector-blue {
-      stroke: var(--blue-alliance);
-      opacity: 0.6;
-    }
-
     .connector-arrow {
-      opacity: 0.8;
-    }
-
-    .connector-arrow.connector-red {
-      fill: var(--red-alliance);
-    }
-
-    .connector-arrow.connector-blue {
-      fill: var(--blue-alliance);
+      fill: rgba(255, 255, 255, 0.7);
     }
 
     /* Champion display */

@@ -11,6 +11,7 @@ const BracketDisplay = {
 
   // Define round layouts for each bracket size
   // Upper and Lower brackets with matches per round
+  // Match order matters for visual alignment with connector lines
   bracketLayouts: {
     4: {
       rounds: ["Round 1", "Round 2", "Round 3", "Finals"],
@@ -36,7 +37,7 @@ const BracketDisplay = {
       ],
       lower: [
         [],            // Round 1 (empty)
-        ["M5", "M6"],  // Round 2
+        ["M6", "M5"],  // Round 2 - M6 on top, M5 below
         ["M8"],        // Round 3
         ["M9"]         // Round 4
       ],
@@ -54,7 +55,7 @@ const BracketDisplay = {
       lower: [
         [],                        // Round 1 (empty)
         ["M5", "M6"],              // Round 2
-        ["M9", "M10"],             // Round 3
+        ["M10", "M9"],             // Round 3 - M10 on top, M9 below
         ["M12"],                   // Round 4
         ["M13"]                    // Round 5
       ],
@@ -312,7 +313,6 @@ const BracketDisplay = {
     if (!layout) return "";
 
     const connectors = this.generateConnectors(allianceCount);
-    const numRounds = layout.rounds.length - 1; // Exclude "Finals" from count
 
     let html = `<div class="bracket-grid bracket-${allianceCount}" data-rounds="${layout.rounds.length}">`;
 
@@ -323,37 +323,43 @@ const BracketDisplay = {
     }
     html += '</div>';
 
+    // Main bracket area with upper, divider, lower, and finals
+    html += '<div class="bracket-main">';
+
+    // Left side: Upper and Lower brackets
+    html += '<div class="bracket-halves">';
+
     // Upper Bracket Section
     html += '<div class="bracket-section upper-bracket">';
     html += '<div class="section-label">Upper Bracket</div>';
     html += '<div class="section-rounds">';
-
     for (let i = 0; i < layout.upper.length; i++) {
       html += this.renderRoundColumn(layout.upper[i], i);
     }
-
-    // Finals column (shared between upper and lower visually)
-    html += '<div class="round-column finals-column">';
-    for (const matchId of layout.finals) {
-      html += `<div class="match-wrapper">${this.renderMatchBox(matchId)}</div>`;
-    }
-    html += '</div>';
-
     html += '</div></div>';
+
+    // Horizontal divider line
+    html += '<div class="bracket-divider"></div>';
 
     // Lower Bracket Section
     html += '<div class="bracket-section lower-bracket">';
     html += '<div class="section-label">Lower Bracket</div>';
     html += '<div class="section-rounds">';
-
     for (let i = 0; i < layout.lower.length; i++) {
       html += this.renderRoundColumn(layout.lower[i], i);
     }
-
-    // Empty finals placeholder to align columns
-    html += '<div class="round-column finals-column empty"></div>';
-
     html += '</div></div>';
+
+    html += '</div>'; // End bracket-halves
+
+    // Finals column - positioned to straddle the divider
+    html += '<div class="finals-section">';
+    for (const matchId of layout.finals) {
+      html += `<div class="match-wrapper">${this.renderMatchBox(matchId)}</div>`;
+    }
+    html += '</div>';
+
+    html += '</div>'; // End bracket-main
 
     // Add SVG for connector lines
     html += `<svg class="bracket-connectors" id="bracket-svg-${allianceCount}"></svg>`;
@@ -398,10 +404,9 @@ const BracketDisplay = {
       const fromX = fromRect.right - containerRect.left;
       const fromY = fromRect.top - containerRect.top + fromRect.height / 2;
 
-      // To: left edge, center of the specific slot (red = top third, blue = bottom third)
+      // To: left edge, center of match box (not specific slot)
       const toX = toRect.left - containerRect.left;
-      const slotOffset = conn.slot === "red" ? 0.33 : 0.67;
-      const toY = toRect.top - containerRect.top + toRect.height * slotOffset;
+      const toY = toRect.top - containerRect.top + toRect.height / 2;
 
       // Create path with right angles
       const midX = fromX + (toX - fromX) / 2;
@@ -409,17 +414,17 @@ const BracketDisplay = {
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       const d = `M ${fromX} ${fromY} H ${midX} V ${toY} H ${toX}`;
       path.setAttribute('d', d);
-      path.setAttribute('class', `connector-line connector-${conn.slot}`);
+      path.setAttribute('class', 'connector-line');
       path.setAttribute('fill', 'none');
 
       svg.appendChild(path);
 
-      // Add arrow at the end
+      // Add arrow at the end pointing to center
       const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
       const arrowSize = 6;
       const arrowPoints = `${toX},${toY} ${toX - arrowSize},${toY - arrowSize / 2} ${toX - arrowSize},${toY + arrowSize / 2}`;
       arrow.setAttribute('points', arrowPoints);
-      arrow.setAttribute('class', `connector-arrow connector-${conn.slot}`);
+      arrow.setAttribute('class', 'connector-arrow');
 
       svg.appendChild(arrow);
     }
